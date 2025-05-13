@@ -27,8 +27,14 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="appkeys.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy $(ProjectDir)appkeys.json $(SolutionDir)VeraciLib\bin\$(ConfigurationName)\net9.0" />
+    <Exec Command="copy $(ProjectDir)appkeys.json $(SolutionDir)VeraciLib\bin\$(ConfigurationName)\net9.0&#xD;&#xA;copy $(ProjectDir)appkeys.json $(SolutionDir)VeraciBot\bin\$(ConfigurationName)\net9.0&#xD;&#xA;copy $(ProjectDir)appkeys.json $(SolutionDir)VeraciApp\bin\$(ConfigurationName)\net9.0&#xD;&#xA;copy $(ProjectDir)appkeys.json $(SolutionDir)VeraciBot&#xD;&#xA;copy $(ProjectDir)appkeys.json $(SolutionDir)VeraciApp" />
     <Exec Command="copy $(ProjectDir)appkeys.json $(SolutionDir)VeraciBot\bin\$(ConfigurationName)\net9.0" />
     <Exec Command="copy $(ProjectDir)appkeys.json $(SolutionDir)VeraciApp\bin\$(ConfigurationName)\net9.0" />
   </Target>

@@ -21,6 +21,7 @@ namespace VeraciBot
         public string xUserId { get; set; } = string.Empty;
         public string xUserName { get; set; } = string.Empty;
         public string openAIKey { get; set; } = string.Empty;
+        public string sendGridKey { get; set; } = string.Empty;
         public string dbConnection { get; set; } = string.Empty;
 
         static AppKeys? appKeys = null;
@@ -37,7 +38,10 @@ namespace VeraciBot
                 {
 
                     if (!File.Exists(fileName))
-                        throw new FileNotFoundException($"Arquivo \"{fileName}\" não encontrado");
+                    {
+                        string dir = Directory.GetCurrentDirectory();
+                        throw new FileNotFoundException($"Arquivo \"{dir}/{fileName}\" não encontrado");
+                    }
 
                     string json = File.ReadAllText(fileName);
                     appKeys = JsonSerializer.Deserialize<AppKeys>(json);
