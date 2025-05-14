@@ -12,6 +12,9 @@ using VeraciApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add MudBlazor services
+builder.Services.AddMudServices();
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -48,6 +51,14 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityEmailSender>();
 
+builder.Services.AddAuthentication()   
+   .AddTwitter(twitterOptions =>
+   {
+       twitterOptions.ConsumerKey = AppKeys.keys.xApiKey;
+       twitterOptions.ConsumerSecret = AppKeys.keys.xApiSecret;
+       twitterOptions.RetrieveUserDetails = true;
+   });
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -63,7 +74,7 @@ else
 }
 
 app.UseHttpsRedirection();
-
+app.UseStaticFiles();
 
 app.UseAntiforgery();
 
