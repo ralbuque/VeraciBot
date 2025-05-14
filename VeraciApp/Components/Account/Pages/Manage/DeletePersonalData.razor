@@ -12,31 +12,31 @@
 
 <PageTitle>Delete Personal Data</PageTitle>
 
+<MudText Typo="Typo.h6" GutterBottom="true">Delete personal data</MudText>
+
 <StatusMessage Message="@message" />
 
-<h3>Delete Personal Data</h3>
+<MudAlert Severity="Severity.Error" Variant="Variant.Text">
+    Deleting this data will permanently remove your account, and this cannot be recovered.
+</MudAlert>
 
-<div class="alert alert-warning" role="alert">
-    <p>
-        <strong>Deleting this data will permanently remove your account, and this cannot be recovered.</strong>
-    </p>
-</div>
+<EditForm Model="Input" FormName="delete-user" OnValidSubmit="OnValidSubmitAsync" method="post">
+    <DataAnnotationsValidator />
 
-<div>
-    <EditForm Model="Input" FormName="delete-user" OnValidSubmit="OnValidSubmitAsync" method="post">
-        <DataAnnotationsValidator />
-        <ValidationSummary class="text-danger" role="alert" />
+    <MudGrid>
         @if (requirePassword)
         {
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Please enter your password." />
-                <label for="Input.Password" class="form-label">Password</label>
-                <ValidationMessage For="() => Input.Password" class="text-danger" />
-            </div>
+            <MudItem md="12">
+                <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password" InputType="InputType.Password"
+                                    Label="Password" Placeholder="password" HelperText="Please enter your new password."
+                                    UserAttributes="@(new() { { "autocomplete", "current-password" }, { "aria-required", "true" } } )" />
+            </MudItem>
         }
-        <button class="w-100 btn btn-lg btn-danger" type="submit">Delete data and close my account</button>
-    </EditForm>
-</div>
+        <MudItem md="12">
+            <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" FormAction="FormAction.Submit">Delete data and close my account</MudStaticButton>
+        </MudItem>
+    </MudGrid>
+</EditForm>
 
 @code {
     private string? message;

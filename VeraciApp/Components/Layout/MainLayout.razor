@@ -7,34 +7,12 @@
 <MudDialogProvider />  
 <MudSnackbarProvider />  
 
-@code {
-
-    MudTheme MyCustomTheme = new MudTheme()
-        {
-
-            PaletteLight = new PaletteLight()
-            {
-                Primary = Colors.Amber.Lighten4,
-                AppbarBackground = Colors.Gray.Darken2
-            },
-
-            PaletteDark = new PaletteDark()
-            {
-                Primary = Colors.Amber.Lighten1,
-                AppbarBackground = Colors.Gray.Darken4
-            },
-
-        };
-
-}
-
 <MudLayout>  
    <MudAppBar Elevation="1">
         <MudIconButton id="nav-drawer-toggle-button" Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
         <MudText Typo="Typo.h5" Class="ml-3">
 			<a href="/">
-                <img src="images/logonome64.png" height="40"/>
-                
+                <img src="images/logonome64.png" height="40"/>               
             </a>
        </MudText>  
        <MudSpacer />  

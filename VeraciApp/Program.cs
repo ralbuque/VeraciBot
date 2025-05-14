@@ -36,13 +36,6 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddDbContext<VeraciDbContext>(options => options.UseSqlServer(AppKeys.keys.dbConnection));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Pega o contexto para criação inicial
-var serviceProvider = builder.Services.BuildServiceProvider();
-var dbContext = serviceProvider.GetRequiredService<VeraciDbContext>();
-
-// Cria o banco e a tabela automaticamente se não existirem
-dbContext.Database.EnsureCreated();
-
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<VeraciDbContext>()
     .AddSignInManager()
@@ -74,7 +67,6 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
 
 app.UseAntiforgery();
 

@@ -1,4 +1,4 @@
-﻿@page "/account/externallogin"
+﻿@page "/Account/ExternalLogin"
 
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
@@ -21,7 +21,7 @@
 <StatusMessage Message="@message" />
 <h1>Register</h1>
 <h2>Associate your @ProviderDisplayName account.</h2>
-<hr />
+<MudDivider />
 
 <div  class="alert alert-info">
     You've successfully authenticated with <strong>@ProviderDisplayName</strong>.
@@ -105,8 +105,8 @@
 
         // Sign in the user with this external login provider if the user already has a login.
         var result = await SignInManager.ExternalLoginSignInAsync(
-            externalLoginInfo.LoginProvider,
-            externalLoginInfo.ProviderKey,
+            externalLoginInfo!.LoginProvider,
+            externalLoginInfo!.ProviderKey,
             isPersistent: false,
             bypassTwoFactor: true);
 
@@ -174,7 +174,7 @@
         message = $"Error: {string.Join(",", result.Errors.Select(error => error.Description))}";
     }
 
-    private ApplicationUser CreateUser()
+    private static ApplicationUser CreateUser()
     {
         try
         {
