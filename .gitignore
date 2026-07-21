@@ -1,0 +1,12 @@
+# segredos — nunca commitar
+.env
+
+# dados locais e runtime
+*.db
+logs/
+veracibot.pid
+
+# python
+__pycache__/
+*.pyc
+.venv/
