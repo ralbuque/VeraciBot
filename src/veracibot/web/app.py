@@ -103,9 +103,9 @@ def _cases(limit: int = 50) -> list[dict]:
 
 def _render(request: Request, template: str, lang: str, alt: str, **ctx):
     return templates.TemplateResponse(
-        template,
-        {
-            "request": request,
+        request=request,
+        name=template,
+        context={
             "t": T[lang],
             "lang": lang,
             "p": PATHS[lang],
