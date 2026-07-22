@@ -1,5 +1,5 @@
-# Instala o VeraciBot (bot + site + Caddy) como serviços do Windows via NSSM.
-# Pré-requisitos: Python 3.10+, NSSM e Caddy no PATH. Rodar como ADMINISTRADOR.
+# Instala o VeraciBot (bot + site + Caddy) como servicos do Windows via NSSM.
+# Pre-requisitos: Python 3.10+, NSSM e Caddy no PATH. Rodar como ADMINISTRADOR.
 #   winget install Python.Python.3.12
 #   winget install NSSM.NSSM
 #   winget install CaddyServer.Caddy
@@ -12,12 +12,12 @@ $Python = Join-Path $Venv "Scripts\python.exe"
 New-Item -ItemType Directory -Force -Path $Logs | Out-Null
 
 if (!(Test-Path (Join-Path $Root ".env"))) {
-    Write-Error ".env não encontrado em $Root — copie de .env.example e preencha as chaves."
+    Write-Error ".env nao encontrado em $Root - copie de .env.example e preencha as chaves."
 }
 
-# Ambiente virtual + dependências
+# Ambiente virtual + dependencias
 if (!(Test-Path $Python)) {
-    Write-Host "Criando venv e instalando dependências..."
+    Write-Host "Criando venv e instalando dependencias..."
     py -3 -m venv $Venv
     & "$Venv\Scripts\pip.exe" install --quiet --upgrade pip
     & "$Venv\Scripts\pip.exe" install --quiet -r (Join-Path $Root "requirements.txt")
@@ -26,7 +26,7 @@ if (!(Test-Path $Python)) {
 function Install-VbService {
     param($Name, $Program, $Arguments, $AppDir, $Log)
     if (Get-Service $Name -ErrorAction SilentlyContinue) {
-        Write-Host "[$Name] já existe; atualizando configuração..."
+        Write-Host "[$Name] ja existe; atualizando configuracao..."
         nssm stop $Name | Out-Null
     } else {
         nssm install $Name $Program $Arguments
@@ -67,6 +67,6 @@ nssm start veracibot-web
 nssm start veracibot-caddy
 
 Write-Host ""
-Write-Host "Serviços instalados e iniciados:"
+Write-Host "Servicos instalados e iniciados:"
 Get-Service veracibot-* | Format-Table Name, Status
-Write-Host "Site local: http://localhost:8000 | Público: https://veraci.bot (após DNS)"
+Write-Host "Site local: http://localhost:8000 | Publico: https://veraci.bot (apos DNS)"
