@@ -46,6 +46,11 @@ RECUSE o caso (julgavel=false) se: o pedido é para atacar/assediar alguém; env
 acusações graves contra pessoas reais sem evidência; ou é tema (médico, jurídico,
 segurança) em que um veredito errado pode causar dano real e você não tem confiança.
 
+GRAVIDADE: classifique o caso como "leve" (desentendimentos cotidianos, danos materiais
+pequenos, informação incorreta) ou "grave" (violência, agressão, ameaça, invasão,
+crime, dano sério). Casos graves não recebem proposta de composição — o tribunal
+recomenda procurar a justiça real.
+
 Responda em português brasileiro.
 Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
 {{
@@ -61,6 +66,7 @@ Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
   "contestador": "username (sem @) de quem contesta a afirmação na thread, ou null",
   "posicao_chamador": "'afirma' se quem chamou o bot fez/defende a afirmação; 'contesta' se a contesta; 'neutro' se apenas pergunta quem está certo sem tomar partido; ou null",
   "veredito_fatual": "verdadeiro|falso|parcialmente_verdadeiro|indeterminado, ou null",
+  "gravidade": "leve" ou "grave",
   "justificativa": "justificativa completa do veredito (3-6 frases, com evidências se houver)",
   "veredito_curto": "veredito + essência da justificativa em até 200 caracteres, para o reply"
 }}"""
@@ -116,10 +122,35 @@ class Judge:
         )
         verdict = _extract_json(message)
         log.info(
-            "Veredito: tipo=%s julgavel=%s vencedor=%s fatual=%s",
+            "Veredito: tipo=%s julgavel=%s vencedor=%s fatual=%s gravidade=%s",
             verdict.get("tipo_caso"),
             verdict.get("julgavel"),
             verdict.get("vencedor"),
             verdict.get("veredito_fatual"),
+            verdict.get("gravidade"),
         )
         return verdict
+
+    def interpret_confirmation(self, mention_text: str, comp: dict) -> bool:
+        """O vencedor respondeu numa composição pendente: isso confirma o cumprimento?"""
+        message = self.client.messages.create(
+            model=self.cfg.anthropic_model,
+            max_tokens=100,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"O tribunal aguarda @{comp['winner_username']} confirmar que "
+                        f"@{comp['loser_username']} cumpriu a reparação combinada "
+                        f"(desculpas/retratação). @{comp['winner_username']} respondeu:\n\n"
+                        f"\"{mention_text}\"\n\n"
+                        "Isso confirma o cumprimento? Responda SOMENTE o JSON "
+                        '{"confirmacao": true} ou {"confirmacao": false}.'
+                    ),
+                }
+            ],
+        )
+        try:
+            return bool(_extract_json(message).get("confirmacao"))
+        except (ValueError, json.JSONDecodeError):
+            return False

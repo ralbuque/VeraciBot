@@ -87,6 +87,15 @@ Parcial / indeterminado / recusado: ninguém ganha nem perde; fica só o custo d
 
 **Disputas** usam a mesma matriz, com vencedor/perdedor no lugar de certo/errado
 (o juiz indica o perdedor principal). Empate: só o custo do chamador.
+
+## Composição
+
+Quando há vencedor e perdedor claros (caso leve), o veredito propõe composição:
+desculpas + reparação (disputa) ou retratação pública (fact-check falso). Se o
+**vencedor** confirmar o cumprimento — respondendo na thread com menção ao bot em
+até **7 dias** — o perdedor recupera **8 pontos** (fica −3 líquido). A confirmação
+é interpretada por IA; casos **graves** (violência, crime, ameaça) não recebem
+proposta: o tribunal recomenda procurar a justiça real.
 Saldos em `scores`, histórico auditável em `ledger`. Pontuação de disputas: fase 2.
 
 ## Próximos passos

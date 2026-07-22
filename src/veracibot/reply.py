@@ -11,13 +11,22 @@ FACT_LABELS = {
 }
 
 
-def format_reply(verdict: dict, scores: list | None = None) -> str:
-    """Monta o reply; `scores` = [(username, delta, saldo)] do sistema de pontos."""
+JUSTICE_LINE = "⚠️ Caso sério: recomendamos procurar a justiça."
+
+
+def composition_line(tipo: str | None, loser: str, winner: str) -> str:
+    if tipo == "fact_check":
+        return f"🤝 @{loser}: retratação pública devolve 8 pts (@{winner} confirma, 7 dias)"
+    return f"🤝 @{loser}: desculpas + reparação a @{winner} devolvem 8 pts (7 dias)"
+
+
+def format_reply(verdict: dict, scores: list | None = None, extra: str | None = None) -> str:
+    """Monta o reply; `scores` = [(username, delta, saldo)]; `extra` = linha de composição."""
     if not verdict.get("julgavel"):
         text = "⚖️ Caso arquivado: " + (
             verdict.get("motivo_recusa") or "não identifiquei uma disputa julgável nesta thread."
         )
-        return _compose(text, scores)
+        return _compose(text, scores, extra)
 
     curto = verdict.get("veredito_curto") or verdict.get("justificativa", "")
 
@@ -26,7 +35,7 @@ def format_reply(verdict: dict, scores: list | None = None) -> str:
             verdict.get("veredito_fatual") or "indeterminado",
             FACT_LABELS["indeterminado"],
         )
-        return _compose(f"{label}. {curto}", scores)
+        return _compose(f"{label}. {curto}", scores, extra)
 
     # disputa
     vencedor = verdict.get("vencedor")
@@ -36,7 +45,7 @@ def format_reply(verdict: dict, scores: list | None = None) -> str:
         header = f"⚖️ Veredito: @{vencedor.lstrip('@')} tem razão. "
     else:
         header = "⚖️ Veredito: "
-    return _compose(header + curto, scores)
+    return _compose(header + curto, scores, extra)
 
 
 def format_scoreboard(scores: list) -> str:
@@ -44,12 +53,16 @@ def format_scoreboard(scores: list) -> str:
     return "📊 " + " · ".join(parts)
 
 
-def _compose(text: str, scores: list | None) -> str:
-    if not scores:
+def _compose(text: str, scores: list | None, extra: str | None = None) -> str:
+    tail = ""
+    if scores:
+        tail += "\n" + format_scoreboard(scores)
+    if extra:
+        tail += "\n" + extra
+    if not tail:
         return _trim(text, MAX_LEN)
-    placar = format_scoreboard(scores)
-    budget = MAX_LEN - len(placar) - 1  # 1 = quebra de linha
-    return _trim(text, max(budget, 40)) + "\n" + placar
+    budget = MAX_LEN - len(tail)
+    return _trim(_trim(text, max(budget, 40)) + tail, MAX_LEN)
 
 
 def _trim(text: str, limit: int = MAX_LEN) -> str:

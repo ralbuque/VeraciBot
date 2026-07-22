@@ -26,6 +26,18 @@ CREATE TABLE IF NOT EXISTS scores (
     balance INTEGER NOT NULL,
     updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS compositions (
+    conversation_id TEXT PRIMARY KEY,
+    tipo TEXT,
+    loser_id TEXT NOT NULL,
+    loser_username TEXT,
+    winner_id TEXT NOT NULL,
+    winner_username TEXT,
+    deadline TEXT NOT NULL,
+    status TEXT NOT NULL,           -- pendente | cumprida | expirada
+    created_at TEXT NOT NULL,
+    resolved_at TEXT
+);
 CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
@@ -92,6 +104,44 @@ class Store:
                 json.dumps(thread, ensure_ascii=False) if thread else None,
                 datetime.now(timezone.utc).isoformat(),
             ),
+        )
+        self.conn.commit()
+
+    # --- composição ---
+    def create_composition(
+        self,
+        conversation_id: str,
+        tipo: str | None,
+        loser_id: str,
+        loser_username: str,
+        winner_id: str,
+        winner_username: str,
+        deadline: str,
+    ) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO compositions (conversation_id, tipo, loser_id, "
+            "loser_username, winner_id, winner_username, deadline, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'pendente', ?)",
+            (conversation_id, tipo, loser_id, loser_username, winner_id,
+             winner_username, deadline, datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def get_pending_composition(self, conversation_id: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT * FROM compositions WHERE conversation_id = ? AND status = 'pendente'",
+            (conversation_id,),
+        ).fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in self.conn.execute(
+            "SELECT * FROM compositions LIMIT 0").description]
+        return dict(zip(cols, row))
+
+    def resolve_composition(self, conversation_id: str, status: str) -> None:
+        self.conn.execute(
+            "UPDATE compositions SET status = ?, resolved_at = ? WHERE conversation_id = ?",
+            (status, datetime.now(timezone.utc).isoformat(), conversation_id),
         )
         self.conn.commit()
 
