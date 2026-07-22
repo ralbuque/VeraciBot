@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="seal">⚖️</div>
+  <h1>{{ t.hero_title }}</h1>
+  <p class="sub">{{ t.hero_sub }}</p>
+  <a class="cta" href="https://x.com/veracibot">{{ t.hero_cta }}</a>
+</section>
+
+<section class="stats">
+  <div><strong>{{ stats.cases }}</strong><span>{{ t.stats_cases }}</span></div>
+  <div><strong>{{ stats.fact }}</strong><span>{{ t.stats_fact }}</span></div>
+  <div><strong>{{ stats.disputes }}</strong><span>{{ t.stats_disputes }}</span></div>
+  <div><strong>{{ stats.users }}</strong><span>{{ t.stats_users }}</span></div>
+</section>
+
+<section>
+  <h2>{{ t.how_title }}</h2>
+  <div class="cards">
+    <div class="card"><h3>{{ t.how_1_t }}</h3><p>{{ t.how_1 }}</p></div>
+    <div class="card"><h3>{{ t.how_2_t }}</h3><p>{{ t.how_2 }}</p></div>
+    <div class="card"><h3>{{ t.how_3_t }}</h3><p>{{ t.how_3 }}</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>{{ t.scoring_title }}</h2>
+  <p>{{ t.scoring_intro }}</p>
+  <table class="rules">
+    {% for situacao, efeito in t.scoring_rows %}
+    <tr><td>{{ situacao }}</td><td>{{ efeito }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

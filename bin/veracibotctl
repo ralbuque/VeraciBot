@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Controle do daemon VeraciBot: start | stop | restart | status | logs
+# Controle dos serviços do VeraciBot.
+# Uso: veracibotctl {start|stop|restart|status|logs} [bot|web|all]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PIDFILE="$ROOT/veracibot.pid"
-LOGFILE="$ROOT/logs/veracibot.log"
 VENV="$ROOT/.venv"
+LOGDIR="$ROOT/logs"
+WEB_PORT="$(grep -E '^WEB_PORT=' "$ROOT/.env" 2>/dev/null | cut -d= -f2 || true)"
+WEB_PORT="${WEB_PORT:-8000}"
 
 ensure_venv() {
     if [ ! -x "$VENV/bin/python" ]; then
@@ -16,54 +18,78 @@ ensure_venv() {
     fi
 }
 
-is_running() {
-    [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null
+cmd_for() {
+    case "$1" in
+        bot) echo "$VENV/bin/python -m src.veracibot.main" ;;
+        web) echo "$VENV/bin/uvicorn src.veracibot.web.app:app --host 0.0.0.0 --port $WEB_PORT" ;;
+    esac
 }
 
-case "${1:-}" in
-    start)
-        if is_running; then
-            echo "VeraciBot já está rodando (PID $(cat "$PIDFILE"))."
-            exit 0
-        fi
-        if [ ! -f "$ROOT/.env" ]; then
-            echo "ERRO: $ROOT/.env não encontrado. Copie de .env.example e preencha as chaves."
-            exit 1
-        fi
-        ensure_venv
-        mkdir -p "$ROOT/logs"
-        cd "$ROOT"
-        nohup "$VENV/bin/python" -m src.veracibot.main >> "$LOGFILE" 2>&1 &
-        echo $! > "$PIDFILE"
-        echo "VeraciBot iniciado (PID $(cat "$PIDFILE")). Logs: $LOGFILE"
-        ;;
-    stop)
-        if ! is_running; then
-            echo "VeraciBot não está rodando."
-            rm -f "$PIDFILE"
-            exit 0
-        fi
-        kill "$(cat "$PIDFILE")"
-        rm -f "$PIDFILE"
-        echo "VeraciBot parado."
-        ;;
-    restart)
-        "$0" stop
-        sleep 1
-        "$0" start
-        ;;
-    status)
-        if is_running; then
-            echo "VeraciBot rodando (PID $(cat "$PIDFILE"))."
-        else
-            echo "VeraciBot parado."
-        fi
-        ;;
-    logs)
-        tail -f "$LOGFILE"
-        ;;
-    *)
-        echo "Uso: $(basename "$0") {start|stop|restart|status|logs}"
+pidfile() { echo "$LOGDIR/$1.pid"; }
+logfile() { echo "$LOGDIR/$1.log"; }
+
+is_running() {
+    [ -f "$(pidfile "$1")" ] && kill -0 "$(cat "$(pidfile "$1")")" 2>/dev/null
+}
+
+start_one() {
+    local svc="$1"
+    if is_running "$svc"; then
+        echo "[$svc] já está rodando (PID $(cat "$(pidfile "$svc")"))."
+        return 0
+    fi
+    if [ "$svc" = "bot" ] && [ ! -f "$ROOT/.env" ]; then
+        echo "ERRO: $ROOT/.env não encontrado. Copie de .env.example e preencha as chaves."
         exit 1
-        ;;
+    fi
+    ensure_venv
+    mkdir -p "$LOGDIR"
+    cd "$ROOT"
+    # shellcheck disable=SC2046
+    nohup $(cmd_for "$svc") >> "$(logfile "$svc")" 2>&1 &
+    echo $! > "$(pidfile "$svc")"
+    echo "[$svc] iniciado (PID $(cat "$(pidfile "$svc")")). Log: $(logfile "$svc")"
+    [ "$svc" = "web" ] && echo "[web] http://localhost:$WEB_PORT"
+}
+
+stop_one() {
+    local svc="$1"
+    if ! is_running "$svc"; then
+        echo "[$svc] não está rodando."
+        rm -f "$(pidfile "$svc")"
+        return 0
+    fi
+    kill "$(cat "$(pidfile "$svc")")"
+    rm -f "$(pidfile "$svc")"
+    echo "[$svc] parado."
+}
+
+status_one() {
+    if is_running "$1"; then
+        echo "[$1] rodando (PID $(cat "$(pidfile "$1")"))."
+    else
+        echo "[$1] parado."
+    fi
+}
+
+ACTION="${1:-}"
+TARGET="${2:-all}"
+case "$TARGET" in
+    bot|web) SERVICES=("$TARGET") ;;
+    all) SERVICES=(bot web) ;;
+    *) echo "Serviço desconhecido: $TARGET (use bot, web ou all)"; exit 1 ;;
+esac
+
+case "$ACTION" in
+    start)   for s in "${SERVICES[@]}"; do start_one "$s"; done ;;
+    stop)    for s in "${SERVICES[@]}"; do stop_one "$s"; done ;;
+    restart) for s in "${SERVICES[@]}"; do stop_one "$s"; done; sleep 1
+             for s in "${SERVICES[@]}"; do start_one "$s"; done ;;
+    status)  for s in "${SERVICES[@]}"; do status_one "$s"; done ;;
+    logs)
+        if [ "$TARGET" = "all" ]; then tail -f "$LOGDIR"/bot.log "$LOGDIR"/web.log
+        else tail -f "$(logfile "$TARGET")"; fi ;;
+    *)
+        echo "Uso: $(basename "$0") {start|stop|restart|status|logs} [bot|web|all]"
+        exit 1 ;;
 esac

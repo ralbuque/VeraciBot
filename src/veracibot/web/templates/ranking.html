@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t.ranking_title }}</h1>
+<p class="sub">{{ t.ranking_sub }}</p>
+{% if rows %}
+<table class="board">
+  <thead>
+    <tr><th>{{ t.col_pos }}</th><th>{{ t.col_user }}</th><th class="num">{{ t.col_points }}</th></tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr class="{{ 'top' if loop.index <= 3 else '' }}">
+      <td>{{ loop.index }}</td>
+      <td><a href="https://x.com/{{ r.username }}">@{{ r.username }}</a></td>
+      <td class="num">{{ r.balance }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">{{ t.no_scores }}</p>
+{% endif %}
+{% endblock %}

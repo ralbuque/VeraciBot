@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t.cases_title }}</h1>
+<p class="sub">{{ t.cases_sub }}</p>
+{% if cases %}
+<div class="cases">
+  {% for c in cases %}
+  <article class="case">
+    <div class="case-head">
+      {% if not c.julgavel %}
+        <span class="badge declined">{{ t.case_declined }}</span>
+      {% elif c.tipo == 'fact_check' %}
+        <span class="badge fact">{{ t.case_fact }}</span>
+      {% else %}
+        <span class="badge dispute">{{ t.case_dispute }}</span>
+      {% endif %}
+      <span class="date">{{ c.date }}</span>
+    </div>
+
+    {% if c.julgavel and c.tipo == 'fact_check' %}
+      <h3>
+        {% if c.fatual == 'verdadeiro' %}{{ t.verdict_true }}
+        {% elif c.fatual == 'falso' %}{{ t.verdict_false }}
+        {% elif c.fatual == 'parcialmente_verdadeiro' %}{{ t.verdict_partial }}
+        {% else %}{{ t.verdict_undetermined }}{% endif %}
+      </h3>
+      {% if c.afirmacao %}<p class="claim">“{{ c.afirmacao }}”</p>{% endif %}
+    {% elif c.julgavel %}
+      <h3>
+        {% if c.vencedor == 'empate' %}⚖️ {{ t.tie }}
+        {% elif c.vencedor %}⚖️ {{ t.winner }}: @{{ c.vencedor }}
+        {% else %}⚖️{% endif %}
+      </h3>
+    {% endif %}
+
+    {% if c.resumo %}<p class="resumo">{{ c.resumo }}</p>{% endif %}
+    {% if c.justificativa %}<p class="just">{{ c.justificativa }}</p>{% endif %}
+
+    {% if c.placar %}
+    <p class="placar">📊
+      {% for username, delta in c.placar %}
+        <span class="{{ 'pos' if delta > 0 else 'neg' }}">@{{ username }} {{ '+' if delta > 0 }}{{ delta }}</span>
+      {% endfor %}
+    </p>
+    {% endif %}
+
+    <a class="xlink" href="{{ c.url }}">{{ t.view_on_x }} →</a>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty">{{ t.no_cases }}</p>
+{% endif %}
+{% endblock %}

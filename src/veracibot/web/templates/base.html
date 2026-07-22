@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="{{ 'pt-BR' if lang == 'pt' else 'en' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t.title }}</title>
+  <meta name="description" content="{{ t.hero_sub }}">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <a class="logo" href="{{ p.home }}">⚖️ <span>VeraciBot</span></a>
+      <nav>
+        <a href="{{ p.ranking }}">{{ t.nav_ranking }}</a>
+        <a href="{{ p.cases }}">{{ t.nav_cases }}</a>
+        <a class="lang" href="{{ alt }}">{{ 'EN' if lang == 'pt' else 'PT' }}</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <div class="wrap">
+      <p><a href="https://x.com/veracibot">@veracibot</a> · veraci.bot</p>
+      <p class="note">{{ t.footer_note }}</p>
+    </div>
+  </footer>
+</body>
+</html>

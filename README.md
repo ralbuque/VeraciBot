@@ -28,12 +28,27 @@ cp .env.example .env   # preencha as credenciais
 O `veracibotctl` cria o venv e instala dependências automaticamente na primeira execução.
 
 ```bash
-./bin/veracibotctl start     # inicia em background (daemon)
-./bin/veracibotctl stop      # para
-./bin/veracibotctl restart   # reinicia (após mudar código ou .env)
-./bin/veracibotctl status    # está rodando?
-./bin/veracibotctl logs      # acompanha o log ao vivo (Ctrl+C para sair)
+./bin/veracibotctl start          # inicia bot + site em background
+./bin/veracibotctl stop           # para tudo
+./bin/veracibotctl restart bot    # reinicia só o bot (após mudar código/.env)
+./bin/veracibotctl status         # está rodando?
+./bin/veracibotctl logs web       # acompanha um log ao vivo (Ctrl+C para sair)
 ```
+
+Os comandos aceitam o alvo `bot`, `web` ou `all` (padrão: `all`).
+
+## Site (veraci.bot)
+
+App FastAPI em `src/veracibot/web/` lendo o SQLite em modo somente-leitura.
+Landing bilíngue (pt em `/`, en em `/en`), ranking público (`/ranking`) e casos
+julgados (`/casos`). Porta configurável via `WEB_PORT` no `.env` (padrão 8000).
+Para publicar em https://veraci.bot, aponte um proxy/túnel (ex.: Cloudflare
+Tunnel) para `localhost:8000`.
+
+## Deploy em produção (Windows Server)
+
+Guia completo em [`deploy/windows/DEPLOY_WINDOWS.md`](deploy/windows/DEPLOY_WINDOWS.md):
+serviços do Windows via NSSM (bot + site) e Caddy servindo https://veraci.bot.
 
 Execução em foreground (debug): `source .venv/bin/activate && python -m src.veracibot.main`
 
