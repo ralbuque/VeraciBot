@@ -51,10 +51,30 @@ pequenos, informação incorreta) ou "grave" (violência, agressão, ameaça, in
 crime, dano sério). Casos graves não recebem proposta de composição — o tribunal
 recomenda procurar a justiça real.
 
+CONTRADIÇÃO FACTUAL E PROVAS:
+- Julgue primeiro pelo INCONTROVERSO: se dá para decidir pelos fatos que ambas as
+  partes admitem (ou verificáveis via busca), decida direto (fase="veredito").
+- Antes de pedir provas, verifique se a prova JÁ ESTÁ NA THREAD: imagens anexadas
+  ([Imagem N]) e links compartilhados são provas já apresentadas — avalie-as e
+  decida direto (fase="veredito"), sem pedir o que já consta dos autos.
+- Só se as partes se contradizem sobre um fato DECISIVO e não há prova na thread
+  nem como resolver por busca, retorne fase="pedido_provas": identifique quem tem o
+  ÔNUS DA PROVA (quem alega o fato positivo — prova negativa não se exige) e o que
+  deve provar.
+- Padrão de prova: preponderância de evidências (verossimilhança, consistência,
+  quem se esquiva), não certeza absoluta.
+- Imagens anexadas na thread são numeradas no texto como [Imagem N]. Prints de
+  e-mail/conversa são INDÍCIOS não autenticáveis — pese-os com essa ressalva na
+  justificativa. Links públicos verificáveis pesam mais.
+
 Responda em português brasileiro.
 Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
 {{
   "tipo_caso": "disputa" ou "fact_check",
+  "fase": "veredito" ou "pedido_provas",
+  "contradicao": "resumo da contradição factual, ou null",
+  "onus": "username (sem @) de quem deve provar, ou null",
+  "fato_a_provar": "o fato que precisa de prova, ou null",
   "julgavel": true/false,
   "motivo_recusa": "string ou null",
   "resumo_disputa": "1-2 frases resumindo o caso",
@@ -78,12 +98,61 @@ Thread em ordem cronológica (a menção ao bot foi feita por @{requester}):
 
 Emita seu julgamento em JSON."""
 
+EVIDENCE_PROMPT = """\
+
+FASE DE PROVAS EM CURSO: o tribunal já pediu que @{onus} provasse: "{fato}".
+Prazo {prazo_status}. A thread acima é a versão atualizada, incluindo o que foi
+apresentado (textos, links e imagens anexadas).
+Emita agora o VEREDITO FINAL (fase="veredito"): avalie as provas apresentadas com
+o padrão de preponderância. Se a prova NÃO foi apresentada e o prazo venceu, a
+alegação é improcedente — quem tinha o ônus perde. Não peça provas novamente."""
+
+MAX_IMAGES = 4
+MAX_IMAGE_BYTES = 4_500_000
+
 
 def _format_thread(thread: list[dict]) -> str:
     lines = []
+    n_img = 0
     for t in thread:
-        lines.append(f"[@{t['author_username']} em {t['created_at']}]\n{t['text']}\n")
+        tags = ""
+        for _ in t.get("media_urls") or []:
+            n_img += 1
+            tags += f" [Imagem {n_img}]"
+        lines.append(f"[@{t['author_username']} em {t['created_at']}]{tags}\n{t['text']}\n")
     return "\n".join(lines)
+
+
+def _download_images(thread: list[dict]) -> list[dict]:
+    """Baixa até MAX_IMAGES fotos da thread e retorna blocos de imagem da API."""
+    import base64
+
+    import requests
+
+    blocks = []
+    for t in thread:
+        for url in t.get("media_urls") or []:
+            if len(blocks) >= MAX_IMAGES:
+                return blocks
+            try:
+                r = requests.get(url, timeout=15)
+                r.raise_for_status()
+                if len(r.content) > MAX_IMAGE_BYTES:
+                    continue
+                media_type = r.headers.get("content-type", "image/jpeg").split(";")[0]
+                if not media_type.startswith("image/"):
+                    continue
+                blocks.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": base64.b64encode(r.content).decode(),
+                    },
+                })
+            except Exception:
+                log.warning("Falha ao baixar imagem %s", url, exc_info=True)
+    return blocks
 
 
 def _extract_json(message) -> dict:
@@ -100,24 +169,28 @@ class Judge:
         self.cfg = cfg
         self.client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
 
-    def judge(self, thread: list[dict], requester: str) -> dict:
+    def judge(self, thread: list[dict], requester: str,
+              evidence: dict | None = None) -> dict:
+        """Julga a thread. `evidence` = {'onus','fato','expired'} na fase de provas."""
         kwargs = {}
         if self.cfg.judge_web_search:
             kwargs["tools"] = [
                 {"type": "web_search_20250305", "name": "web_search", "max_uses": 3}
             ]
+        text = USER_PROMPT.format(requester=requester, thread_text=_format_thread(thread))
+        if evidence:
+            text += EVIDENCE_PROMPT.format(
+                onus=evidence["onus"],
+                fato=evidence["fato"],
+                prazo_status="VENCIDO" if evidence["expired"] else "ainda em curso",
+            )
+        content: list = _download_images(thread)
+        content.append({"type": "text", "text": text})
         message = self.client.messages.create(
             model=self.cfg.anthropic_model,
             max_tokens=2500,
             system=SYSTEM_PROMPT.format(bot_handle=self.cfg.bot_handle),
-            messages=[
-                {
-                    "role": "user",
-                    "content": USER_PROMPT.format(
-                        requester=requester, thread_text=_format_thread(thread)
-                    ),
-                }
-            ],
+            messages=[{"role": "user", "content": content}],
             **kwargs,
         )
         verdict = _extract_json(message)

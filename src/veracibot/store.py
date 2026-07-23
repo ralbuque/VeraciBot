@@ -154,6 +154,21 @@ class Store:
         self.conn.commit()
 
     # --- casos ---
+    def get_case(self, conversation_id: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT conversation_id, mention_tweet_id, mention_author, status, "
+            "verdict_json FROM cases WHERE conversation_id = ?", (conversation_id,)
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "conversation_id": row[0],
+            "mention_tweet_id": row[1],
+            "mention_author": row[2],
+            "status": row[3],
+            "verdict": json.loads(row[4]) if row[4] else {},
+        }
+
     def case_exists(self, conversation_id: str) -> bool:
         row = self.conn.execute(
             "SELECT 1 FROM cases WHERE conversation_id = ?", (conversation_id,)

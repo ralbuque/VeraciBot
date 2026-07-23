@@ -7,13 +7,14 @@ from .config import load_config
 from .invites import (INVITER_BALANCE, INVITES_PER_MEMBER, NO_INVITES_LEFT,
                       NOT_INVITED, WELCOME, parse_invites)
 from .judge import Judge
-from .reply import JUSTICE_LINE, composition_line, format_reply
+from .reply import JUSTICE_LINE, composition_line, evidence_request, format_reply
 from .scoring import CALL_COST, apply_scores, resolve_user_id
 from .store import Store
 from .x_client import XClient
 
 COMPOSITION_DAYS = 7
 COMPOSITION_REFUND = 8
+EVIDENCE_HOURS = 48
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,8 +35,12 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         handle_member_invites(mention, invited, x, store, cfg)
         return
 
-    if store.case_exists(conv_id):
-        handle_confirmation(mention, x, judge, store, cfg)
+    case = store.get_case(conv_id)
+    if case:
+        if case["status"] == "aguardando_provas":
+            handle_evidence(mention, x, judge, store, cfg, case)
+        else:
+            handle_confirmation(mention, x, judge, store, cfg)
         return
 
     # Modo convite: só membros abrem casos
@@ -72,6 +77,24 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         thread = x.fetch_thread(conv_id, cfg.max_thread_tweets)
         # Nota: thread com 1 tweet é válida — pode ser fact-check de afirmação única.
         verdict = judge.judge(thread, requester)
+
+        # Contradição factual decisiva: abre a fase de provas (sem pontuar ainda)
+        if (verdict.get("fase") == "pedido_provas" and verdict.get("julgavel")
+                and verdict.get("onus")):
+            deadline = (datetime.now(timezone.utc)
+                        + timedelta(hours=EVIDENCE_HOURS)).isoformat()
+            verdict["provas_deadline"] = deadline
+            reply_id = None
+            if cfg.post_replies:
+                reply_id = x.post_reply(
+                    evidence_request(verdict, EVIDENCE_HOURS, cfg.max_reply_len),
+                    in_reply_to_tweet_id=mention["id"],
+                )
+            store.save_case(conv_id, mention["id"], requester, "aguardando_provas",
+                            verdict=verdict, reply_tweet_id=reply_id, thread=thread)
+            log.info("Fase de provas aberta em %s: ônus de @%s até %s",
+                     conv_id, verdict["onus"], deadline)
+            return
 
         scores = apply_scores(
             store, verdict, requester_id, requester, thread, conv_id
@@ -126,6 +149,46 @@ def open_composition(verdict, scores, thread, requester_id, requester, conv_id, 
                              winner_id, winner, deadline)
     log.info("Composição aberta: @%s deve reparar @%s até %s", loser, winner, deadline)
     return composition_line(verdict.get("tipo_caso"), loser, winner)
+
+
+def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
+                    cfg, case: dict) -> None:
+    """Menção em caso aguardando provas: rejulga a thread atualizada (com imagens)."""
+    conv_id = mention["conversation_id"]
+    verdict0 = case["verdict"]
+    expired = datetime.now(timezone.utc).isoformat() > (
+        verdict0.get("provas_deadline") or "")
+    requester = case["mention_author"] or "desconhecido"  # chamador original
+
+    log.info("Fase de provas em %s: nova menção de @%s (prazo %s).",
+             conv_id, mention["author_username"], "vencido" if expired else "em curso")
+    try:
+        thread = x.fetch_thread(conv_id, cfg.max_thread_tweets)
+        verdict = judge.judge(thread, requester, evidence={
+            "onus": verdict0.get("onus"),
+            "fato": verdict0.get("fato_a_provar"),
+            "expired": expired,
+        })
+        if verdict.get("fase") == "pedido_provas" and not expired:
+            log.info("Juiz ainda aguarda provas em %s; sem novo reply.", conv_id)
+            return
+
+        requester_id = resolve_user_id(thread, requester) or mention["author_id"]
+        scores = apply_scores(store, verdict, requester_id, requester, thread, conv_id)
+        extra = open_composition(verdict, scores, thread, requester_id, requester,
+                                 conv_id, store)
+        reply_id = None
+        if cfg.post_replies:
+            reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len)
+            fallback = (format_reply(verdict, scores, extra)
+                        if cfg.max_reply_len > 280 else None)
+            reply_id = x.post_reply(reply_text, in_reply_to_tweet_id=mention["id"],
+                                    fallback=fallback)
+        status = "judged" if verdict.get("julgavel") else "declined"
+        store.save_case(conv_id, case["mention_tweet_id"], requester, status,
+                        verdict=verdict, reply_tweet_id=reply_id, thread=thread)
+    except Exception:
+        log.exception("Erro na fase de provas da conversa %s", conv_id)
 
 
 def handle_confirmation(mention: dict, x: XClient, judge: Judge, store: Store, cfg) -> None:

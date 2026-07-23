@@ -9,17 +9,29 @@ from .config import Config
 
 log = logging.getLogger(__name__)
 
-TWEET_FIELDS = ["author_id", "conversation_id", "created_at", "in_reply_to_user_id", "referenced_tweets"]
-EXPANSIONS = ["author_id"]
+TWEET_FIELDS = ["author_id", "conversation_id", "created_at", "in_reply_to_user_id",
+                "referenced_tweets", "attachments", "entities"]
+EXPANSIONS = ["author_id", "attachments.media_keys"]
 USER_FIELDS = ["username", "name"]
+MEDIA_FIELDS = ["url", "type"]
 
 
 def _index_users(includes) -> dict:
     return {u.id: u for u in (includes or {}).get("users", [])}
 
 
-def _tweet_to_dict(tweet, users: dict) -> dict:
+def _index_media(includes) -> dict:
+    return {m.media_key: m for m in (includes or {}).get("media", [])}
+
+
+def _tweet_to_dict(tweet, users: dict, media: dict | None = None) -> dict:
     author = users.get(tweet.author_id)
+    media_urls = []
+    if media and tweet.attachments:
+        for key in tweet.attachments.get("media_keys", []):
+            m = media.get(key)
+            if m is not None and m.type == "photo" and m.url:
+                media_urls.append(m.url)
     return {
         "id": str(tweet.id),
         "conversation_id": str(tweet.conversation_id),
@@ -28,6 +40,7 @@ def _tweet_to_dict(tweet, users: dict) -> dict:
         "author_name": author.name if author else None,
         "text": tweet.text,
         "created_at": tweet.created_at.isoformat() if tweet.created_at else None,
+        "media_urls": media_urls,
     }
 
 
@@ -92,11 +105,13 @@ class XClient:
             tweet_fields=TWEET_FIELDS,
             expansions=EXPANSIONS,
             user_fields=USER_FIELDS,
+            media_fields=MEDIA_FIELDS,
         )
         if root.data:
             users = _index_users(root.includes)
+            media = _index_media(root.includes)
             for t in root.data:
-                tweets[str(t.id)] = _tweet_to_dict(t, users)
+                tweets[str(t.id)] = _tweet_to_dict(t, users, media)
 
         # Replies da conversa
         paginator = tweepy.Paginator(
@@ -106,13 +121,15 @@ class XClient:
             tweet_fields=TWEET_FIELDS,
             expansions=EXPANSIONS,
             user_fields=USER_FIELDS,
+            media_fields=MEDIA_FIELDS,
         )
         for page in paginator:
             if not page.data:
                 break
             users = _index_users(page.includes)
+            media = _index_media(page.includes)
             for t in page.data:
-                tweets[str(t.id)] = _tweet_to_dict(t, users)
+                tweets[str(t.id)] = _tweet_to_dict(t, users, media)
             if len(tweets) >= max_tweets:
                 break
 

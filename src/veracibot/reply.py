@@ -26,6 +26,19 @@ FACT_LABELS = {
 JUSTICE_LINE = "⚠️ Caso sério: recomendamos procurar a justiça."
 
 
+def evidence_request(verdict: dict, hours: int, max_len: int = MAX_LEN) -> str:
+    contradicao = verdict.get("contradicao") or "as partes se contradizem sobre um fato decisivo"
+    onus = (verdict.get("onus") or "").lstrip("@")
+    fato = verdict.get("fato_a_provar") or "o fato alegado"
+    text = (
+        f"⚖️ Contradição factual: {contradicao}\n"
+        f"📎 Ônus da prova: @{onus} — apresente link ou print de \"{fato}\" "
+        f"respondendo nesta thread com menção a mim, em até {hours}h. "
+        f"Prova negativa não se exige. Sem prova no prazo, a alegação será julgada improcedente."
+    )
+    return _trim(text, max_len)
+
+
 def composition_line(tipo: str | None, loser: str, winner: str) -> str:
     if tipo == "fact_check":
         return f"🤝 @{loser}: retratação pública devolve 8 pts (@{winner} confirma, 7 dias)"

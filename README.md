@@ -97,6 +97,17 @@ Parcial / indeterminado / recusado: ninguém ganha nem perde; fica só o custo d
 **Disputas** usam a mesma matriz, com vencedor/perdedor no lugar de certo/errado
 (o juiz indica o perdedor principal). Empate: só o custo do chamador.
 
+## Fase de provas (contradição factual)
+
+Quando as partes se contradizem sobre um fato **decisivo** (ex.: "você prometeu por
+e-mail" × "nunca mandei esse e-mail"), o juiz não decide às cegas: identifica quem
+tem o **ônus da prova** (quem alega o fato positivo — prova negativa não se exige) e
+pede na thread link ou print, com prazo de **48h**. Nova menção na conversa reabre o
+julgamento com a thread atualizada — o juiz **lê as imagens anexadas** (prints valem
+como indício não autenticável; links públicos pesam mais) e decide por preponderância
+de evidências. Prazo vencido sem prova: a alegação é julgada improcedente e o
+alegante perde. Pontos e composição só são aplicados no veredito final.
+
 ## Composição
 
 Quando há vencedor e perdedor claros (caso leve), o veredito propõe composição:
