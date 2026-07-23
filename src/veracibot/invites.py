@@ -13,11 +13,14 @@ INVITES_PER_MEMBER = 5
 
 INVITE_RE = re.compile(r"convido\s+@(\w{1,15})", re.IGNORECASE)
 
+# Atenção: o exemplo usa "@…" de propósito — não pode casar com INVITE_RE, senão
+# o próprio tweet de boas-vindas viraria um convite (o poller lê tweets do bot).
 WELCOME = (
     "Seja bem-vindo(a) ao VeraciBot, {handles}! Você já pode chamar o bot em "
-    "qualquer thread e convidar outras {n} pessoas (\"@veracibot convido @fulano\"). "
-    "Saiba mais: veraci.bot"
+    "qualquer thread e convidar outras {n} pessoas — basta me mencionar com "
+    "\"convido @…\". Saiba mais: veraci.bot"
 )
+INVITER_BALANCE = " @{inviter} ainda tem {left} convite(s)."
 NOT_INVITED = (
     "Lamento, @{handle}, mas o VeraciBot só pode ser chamado por quem foi "
     "convidado. Procure alguém que participe do sistema e peça para te convidar. "

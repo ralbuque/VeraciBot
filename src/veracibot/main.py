@@ -4,8 +4,8 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from .config import load_config
-from .invites import (INVITES_PER_MEMBER, NO_INVITES_LEFT, NOT_INVITED, WELCOME,
-                      parse_invites)
+from .invites import (INVITER_BALANCE, INVITES_PER_MEMBER, NO_INVITES_LEFT,
+                      NOT_INVITED, WELCOME, parse_invites)
 from .judge import Judge
 from .reply import JUSTICE_LINE, composition_line, format_reply
 from .scoring import CALL_COST, apply_scores, resolve_user_id
@@ -187,8 +187,10 @@ def handle_member_invites(mention, invited, x, store, cfg) -> None:
     log.info("Convites de @%s: aceitos=%s esgotados=%s", inviter, accepted, failed)
     if cfg.post_replies:
         if accepted:
+            left = store.get_member(inviter)["invites_left"]
             x.post_reply(
-                WELCOME.format(handles=" ".join(accepted), n=INVITES_PER_MEMBER),
+                WELCOME.format(handles=" ".join(accepted), n=INVITES_PER_MEMBER)
+                + INVITER_BALANCE.format(inviter=inviter, left=left),
                 in_reply_to_tweet_id=mention["id"],
             )
         elif failed:
