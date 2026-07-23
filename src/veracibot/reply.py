@@ -1,7 +1,19 @@
-"""Formata o veredito como reply de até 280 caracteres."""
+"""Formata o veredito como reply de até 280 caracteres (contagem ponderada do X)."""
 from __future__ import annotations
 
-MAX_LEN = 280
+MAX_LEN = 278  # margem de segurança sob o limite de 280
+
+# Faixas Unicode que valem 1 na contagem do X (twitter-text); o resto vale 2.
+_LIGHT_RANGES = ((0, 4351), (8192, 8205), (8208, 8223), (8242, 8247))
+
+
+def x_len(text: str) -> int:
+    """Comprimento como o X conta: latinos/acentos = 1, emoji/CJK = 2 (conservador)."""
+    total = 0
+    for ch in text:
+        cp = ord(ch)
+        total += 1 if any(a <= cp <= b for a, b in _LIGHT_RANGES) else 2
+    return total
 
 FACT_LABELS = {
     "verdadeiro": "✅ Verdadeiro",
@@ -61,11 +73,19 @@ def _compose(text: str, scores: list | None, extra: str | None = None) -> str:
         tail += "\n" + extra
     if not tail:
         return _trim(text, MAX_LEN)
-    budget = MAX_LEN - len(tail)
+    budget = MAX_LEN - x_len(tail)
     return _trim(_trim(text, max(budget, 40)) + tail, MAX_LEN)
 
 
 def _trim(text: str, limit: int = MAX_LEN) -> str:
-    if len(text) <= limit:
+    """Corta pelo comprimento ponderado do X, adicionando reticências."""
+    if x_len(text) <= limit:
         return text
-    return text[: limit - 1].rstrip() + "…"
+    out, total = [], 0
+    for ch in text:
+        w = 1 if any(a <= ord(ch) <= b for a, b in _LIGHT_RANGES) else 2
+        if total + w > limit - 2:  # reserva para o "…" (peso 2)
+            break
+        out.append(ch)
+        total += w
+    return "".join(out).rstrip() + "…"
