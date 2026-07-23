@@ -103,9 +103,18 @@ class XClient:
         return thread[:max_tweets]
 
     def post_reply(self, text: str, in_reply_to_tweet_id: str) -> str | None:
-        resp = self.client.create_tweet(
-            text=text, in_reply_to_tweet_id=in_reply_to_tweet_id
-        )
+        """Posta um reply. Retorna None (sem levantar exceção) se o X proibir a
+        resposta — ex.: thread com replies restritos ou tweet apagado."""
+        try:
+            resp = self.client.create_tweet(
+                text=text, in_reply_to_tweet_id=in_reply_to_tweet_id
+            )
+        except tweepy.errors.Forbidden as e:
+            log.warning(
+                "Reply proibido pelo X em %s (thread restrita ou tweet apagado): %s",
+                in_reply_to_tweet_id, e,
+            )
+            return None
         tweet_id = str(resp.data["id"]) if resp.data else None
         log.info("Reply postado: %s", tweet_id)
         return tweet_id
