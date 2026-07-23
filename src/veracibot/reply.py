@@ -32,22 +32,33 @@ def composition_line(tipo: str | None, loser: str, winner: str) -> str:
     return f"🤝 @{loser}: desculpas + reparação a @{winner} devolvem 8 pts (7 dias)"
 
 
-def format_reply(verdict: dict, scores: list | None = None, extra: str | None = None) -> str:
-    """Monta o reply; `scores` = [(username, delta, saldo)]; `extra` = linha de composição."""
+def format_reply(
+    verdict: dict,
+    scores: list | None = None,
+    extra: str | None = None,
+    max_len: int = MAX_LEN,
+) -> str:
+    """Monta o reply; `scores` = [(username, delta, saldo)]; `extra` = linha de composição.
+
+    Com `max_len` alto (conta Premium), usa a justificativa completa em vez do
+    veredito curto.
+    """
     if not verdict.get("julgavel"):
         text = "⚖️ Caso arquivado: " + (
             verdict.get("motivo_recusa") or "não identifiquei uma disputa julgável nesta thread."
         )
-        return _compose(text, scores, extra)
+        return _compose(text, scores, extra, max_len)
 
     curto = verdict.get("veredito_curto") or verdict.get("justificativa", "")
+    if max_len > 400:
+        curto = verdict.get("justificativa") or curto
 
     if verdict.get("tipo_caso") == "fact_check":
         label = FACT_LABELS.get(
             verdict.get("veredito_fatual") or "indeterminado",
             FACT_LABELS["indeterminado"],
         )
-        return _compose(f"{label}. {curto}", scores, extra)
+        return _compose(f"{label}. {curto}", scores, extra, max_len)
 
     # disputa
     vencedor = verdict.get("vencedor")
@@ -57,7 +68,7 @@ def format_reply(verdict: dict, scores: list | None = None, extra: str | None = 
         header = f"⚖️ Veredito: @{vencedor.lstrip('@')} tem razão. "
     else:
         header = "⚖️ Veredito: "
-    return _compose(header + curto, scores, extra)
+    return _compose(header + curto, scores, extra, max_len)
 
 
 def format_scoreboard(scores: list) -> str:
@@ -65,16 +76,17 @@ def format_scoreboard(scores: list) -> str:
     return "📊 " + " · ".join(parts)
 
 
-def _compose(text: str, scores: list | None, extra: str | None = None) -> str:
+def _compose(text: str, scores: list | None, extra: str | None = None,
+             max_len: int = MAX_LEN) -> str:
     tail = ""
     if scores:
-        tail += "\n" + format_scoreboard(scores)
+        tail += "\n\n" + format_scoreboard(scores) if max_len > 400 else "\n" + format_scoreboard(scores)
     if extra:
         tail += "\n" + extra
     if not tail:
-        return _trim(text, MAX_LEN)
-    budget = MAX_LEN - x_len(tail)
-    return _trim(_trim(text, max(budget, 40)) + tail, MAX_LEN)
+        return _trim(text, max_len)
+    budget = max_len - x_len(tail)
+    return _trim(_trim(text, max(budget, 40)) + tail, max_len)
 
 
 def _trim(text: str, limit: int = MAX_LEN) -> str:

@@ -119,14 +119,19 @@ class XClient:
         thread = sorted(tweets.values(), key=lambda t: int(t["id"]))
         return thread[:max_tweets]
 
-    def post_reply(self, text: str, in_reply_to_tweet_id: str) -> str | None:
-        """Posta um reply. Retorna None (sem levantar exceção) se o X proibir a
-        resposta — ex.: thread com replies restritos ou tweet apagado."""
+    def post_reply(self, text: str, in_reply_to_tweet_id: str,
+                   fallback: str | None = None) -> str | None:
+        """Posta um reply. Se o X recusar (403) e houver `fallback` (versão curta),
+        tenta uma vez com ele. Retorna None se nada puder ser postado."""
         try:
             resp = self.client.create_tweet(
                 text=text, in_reply_to_tweet_id=in_reply_to_tweet_id
             )
         except tweepy.errors.Forbidden as e:
+            if fallback and fallback != text:
+                log.warning("Reply longo recusado em %s; tentando versão curta: %s",
+                            in_reply_to_tweet_id, e)
+                return self.post_reply(fallback, in_reply_to_tweet_id)
             log.warning(
                 "Reply proibido pelo X em %s (thread restrita ou tweet apagado): %s",
                 in_reply_to_tweet_id, e,

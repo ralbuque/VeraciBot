@@ -84,8 +84,11 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
 
         reply_id = None
         if cfg.post_replies:
-            reply_text = format_reply(verdict, scores, extra)
-            reply_id = x.post_reply(reply_text, in_reply_to_tweet_id=mention["id"])
+            reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len)
+            fallback = (format_reply(verdict, scores, extra)
+                        if cfg.max_reply_len > 280 else None)
+            reply_id = x.post_reply(reply_text, in_reply_to_tweet_id=mention["id"],
+                                    fallback=fallback)
 
         status = "judged" if verdict.get("julgavel") else "declined"
         store.save_case(conv_id, mention["id"], requester, status,
