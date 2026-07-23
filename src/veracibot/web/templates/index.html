@@ -1,50 +1,66 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero">
-  <div class="seal">⚖️</div>
-  <h1>{{ t.hero_title }}</h1>
-  <p class="sub">{{ t.hero_sub }}</p>
-  <a class="cta" href="https://x.com/veracibot">{{ t.hero_cta }}</a>
+<section class="text-center py-5">
+  <div class="display-3">⚖️</div>
+  <h1 class="display-5 mt-2">{{ t.hero_title }}</h1>
+  <p class="lead text-secondary mx-auto mt-3" style="max-width: 640px">{{ t.hero_sub }}</p>
+  <a class="btn btn-outline-gold btn-lg mt-4" href="https://x.com/veracibot">{{ t.hero_cta }}</a>
 </section>
 
-<section class="stats">
-  <div><strong>{{ stats.cases }}</strong><span>{{ t.stats_cases }}</span></div>
-  <div><strong>{{ stats.fact }}</strong><span>{{ t.stats_fact }}</span></div>
-  <div><strong>{{ stats.disputes }}</strong><span>{{ t.stats_disputes }}</span></div>
-  <div><strong>{{ stats.users }}</strong><span>{{ t.stats_users }}</span></div>
+<section class="row g-3 justify-content-center text-center mb-5">
+  {% for value, label in [(stats.cases, t.stats_cases), (stats.fact, t.stats_fact),
+                          (stats.disputes, t.stats_disputes), (stats.users, t.stats_users)] %}
+  <div class="col-6 col-md-3">
+    <div class="card h-100 py-3">
+      <div class="fs-2 text-gold">{{ value }}</div>
+      <div class="text-secondary small">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
 </section>
 
-<section class="why">
-  <h2>{{ t.why_title }}</h2>
-  <p>{{ t.why_p1 }}</p>
-  <p>{{ t.why_p2 }}</p>
-</section>
-
-<section>
-  <h2>{{ t.how_title }}</h2>
-  <div class="cards">
-    <div class="card"><h3>{{ t.how_1_t }}</h3><p>{{ t.how_1 }}</p></div>
-    <div class="card"><h3>{{ t.how_2_t }}</h3><p>{{ t.how_2 }}</p></div>
-    <div class="card"><h3>{{ t.how_3_t }}</h3><p>{{ t.how_3 }}</p></div>
+<section class="mb-5">
+  <div class="card border-gold p-4">
+    <h2 class="h4">{{ t.why_title }}</h2>
+    <p>{{ t.why_p1 }}</p>
+    <p class="text-secondary mb-0">{{ t.why_p2 }}</p>
   </div>
 </section>
 
-<section>
-  <h2>{{ t.process_title }}</h2>
-  <table class="rules">
-    {% for step in t.process_steps %}
-    <tr><td>{{ loop.index }}.</td><td>{{ step }}</td></tr>
+<section class="mb-5">
+  <h2 class="h3 mb-3">{{ t.how_title }}</h2>
+  <div class="row g-3 row-cols-1 row-cols-md-3">
+    {% for ht, hp in [(t.how_1_t, t.how_1), (t.how_2_t, t.how_2), (t.how_3_t, t.how_3)] %}
+    <div class="col">
+      <div class="card h-100 p-3">
+        <h3 class="h6 text-gold">{{ ht }}</h3>
+        <p class="text-secondary small mb-0">{{ hp }}</p>
+      </div>
+    </div>
     {% endfor %}
-  </table>
+  </div>
 </section>
 
-<section>
-  <h2>{{ t.scoring_title }}</h2>
-  <p>{{ t.scoring_intro }}</p>
-  <table class="rules">
-    {% for situacao, efeito in t.scoring_rows %}
-    <tr><td>{{ situacao }}</td><td>{{ efeito }}</td></tr>
+<section class="mb-5">
+  <h2 class="h3 mb-3">{{ t.process_title }}</h2>
+  <ol class="list-group list-group-numbered">
+    {% for step in t.process_steps %}
+    <li class="list-group-item">{{ step }}</li>
     {% endfor %}
-  </table>
+  </ol>
+</section>
+
+<section class="mb-5">
+  <h2 class="h3 mb-2">{{ t.scoring_title }}</h2>
+  <p class="text-secondary">{{ t.scoring_intro }}</p>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <tbody>
+        {% for situacao, efeito in t.scoring_rows %}
+        <tr><td>{{ situacao }}</td><td class="text-secondary">{{ efeito }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 {% endblock %}

@@ -1,23 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>{{ t.ranking_title }}</h1>
-<p class="sub">{{ t.ranking_sub }}</p>
+<h1 class="h2">{{ t.ranking_title }}</h1>
+<p class="text-secondary">{{ t.ranking_sub }}</p>
 {% if rows %}
-<table class="board">
-  <thead>
-    <tr><th>{{ t.col_pos }}</th><th>{{ t.col_user }}</th><th class="num">{{ t.col_points }}</th></tr>
-  </thead>
-  <tbody>
-    {% for r in rows %}
-    <tr class="{{ 'top' if loop.index <= 3 else '' }}">
-      <td>{{ loop.index }}</td>
-      <td><a href="https://x.com/{{ r.username }}">@{{ r.username }}</a></td>
-      <td class="num">{{ r.balance }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr><th style="width:4rem">{{ t.col_pos }}</th><th>{{ t.col_user }}</th>
+          <th class="text-end">{{ t.col_points }}</th></tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}</td>
+        <td><a href="https://x.com/{{ r.username }}">@{{ r.username }}</a></td>
+        <td class="text-end {{ 'text-gold' if loop.index <= 3 }}">{{ r.balance }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p class="empty">{{ t.no_scores }}</p>
+<p class="text-secondary mt-4">{{ t.no_scores }}</p>
 {% endif %}
 {% endblock %}

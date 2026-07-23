@@ -1,37 +1,40 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Administração — escritórios</h1>
-<p class="sub">{{ user.email }} · <a href="/logout">sair</a></p>
+<h1 class="h2">Administração — escritórios</h1>
+<p class="text-secondary">{{ user.email }} · <a href="/logout">sair</a></p>
 {% if firms %}
-<table class="board">
-  <thead>
-    <tr><th>Nome</th><th>OAB</th><th>UF</th><th>Cidade</th><th>Áreas</th>
-        <th>Contato</th><th>Status</th><th>Ações</th></tr>
-  </thead>
-  <tbody>
-    {% for f in firms %}
-    <tr>
-      <td>{{ f.name }}</td><td>{{ f.oab }}</td><td>{{ f.uf }}</td>
-      <td>{{ f.cidade }}</td><td>{{ f.areas }}</td><td>{{ f.contato }}</td>
-      <td>{{ f.status }}</td>
-      <td>
-        <form method="post" action="/admin/firm/{{ f.id }}" style="display:inline">
-          {% if f.status != 'aprovado' %}
-          <button name="status" value="aprovado">Aprovar</button>
-          {% endif %}
-          {% if f.status != 'inativo' %}
-          <button name="status" value="inativo">Desativar</button>
-          {% endif %}
-          {% if f.status == 'inativo' %}
-          <button name="status" value="aprovado">Reativar</button>
-          {% endif %}
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr><th>Nome</th><th>OAB</th><th>UF</th><th>Cidade</th><th>Áreas</th>
+          <th>Contato</th><th>Status</th><th>Ações</th></tr>
+    </thead>
+    <tbody>
+      {% for f in firms %}
+      <tr>
+        <td>{{ f.name }}</td><td>{{ f.oab }}</td><td>{{ f.uf }}</td>
+        <td>{{ f.cidade }}</td><td>{{ f.areas }}</td><td>{{ f.contato }}</td>
+        <td>
+          {% if f.status == 'aprovado' %}<span class="badge text-bg-success">aprovado</span>
+          {% elif f.status == 'pendente' %}<span class="badge text-bg-warning">pendente</span>
+          {% else %}<span class="badge text-bg-danger">inativo</span>{% endif %}
+        </td>
+        <td class="text-nowrap">
+          <form method="post" action="/admin/firm/{{ f.id }}" class="d-inline">
+            {% if f.status != 'aprovado' %}
+            <button class="btn btn-outline-gold btn-sm" name="status" value="aprovado">Aprovar</button>
+            {% endif %}
+            {% if f.status != 'inativo' %}
+            <button class="btn btn-outline-danger btn-sm" name="status" value="inativo">Desativar</button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p class="empty">Nenhum cadastro ainda.</p>
+<p class="text-secondary">Nenhum cadastro ainda.</p>
 {% endif %}
 {% endblock %}

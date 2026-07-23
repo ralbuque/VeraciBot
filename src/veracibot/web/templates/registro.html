@@ -1,24 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Cadastro de escritório / advogado(a)</h1>
-<p class="sub">Após o cadastro, seu perfil passa por aprovação antes de aparecer no
-diretório de parceiros indicado pelo tribunal.</p>
-{% if msg %}<p class="empty">{{ msg }}</p>{% endif %}
-<form method="post" class="authform">
-  <label>E-mail <input type="email" name="email" required></label>
-  <label>Senha (mín. 8) <input type="password" name="password" minlength="8" required></label>
-  <label>Nome do escritório/advogado(a) <input name="name" required></label>
-  <label>OAB <input name="oab" placeholder="OAB/SP 123456"></label>
-  <label>UF
-    <select name="uf" required>
-      {% for sigla in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
-      <option value="{{ sigla }}">{{ sigla }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <label>Cidade <input name="cidade"></label>
-  <label>Áreas de atuação <input name="areas" placeholder="Consumidor, Cível, Trabalhista"></label>
-  <label>Contato (site, e-mail ou telefone) <input name="contato" required></label>
-  <button type="submit">Cadastrar</button>
-</form>
+<div class="col-12 col-md-8 col-lg-6 mx-auto">
+  <h1 class="h2">Cadastro de escritório / advogado(a)</h1>
+  <p class="text-secondary">Após o cadastro, seu perfil passa por aprovação antes de
+    aparecer no diretório de parceiros indicado pelo tribunal.</p>
+  {% if msg %}<div class="alert alert-warning">{{ msg }}</div>{% endif %}
+  <form method="post" class="card p-4 mt-2 d-flex flex-column gap-3">
+    <div>
+      <label class="form-label">E-mail</label>
+      <input class="form-control" type="email" name="email" required>
+    </div>
+    <div>
+      <label class="form-label">Senha (mín. 8 caracteres)</label>
+      <input class="form-control" type="password" name="password" minlength="8" required>
+    </div>
+    <div>
+      <label class="form-label">Nome do escritório/advogado(a)</label>
+      <input class="form-control" name="name" required>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">OAB</label>
+        <input class="form-control" name="oab" placeholder="OAB/SP 123456">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">UF</label>
+        <select class="form-select" name="uf" required>
+          {% for sigla in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+          <option value="{{ sigla }}">{{ sigla }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Cidade</label>
+        <input class="form-control" name="cidade">
+      </div>
+    </div>
+    <div>
+      <label class="form-label">Áreas de atuação</label>
+      <input class="form-control" name="areas" placeholder="Consumidor, Cível, Trabalhista">
+    </div>
+    <div>
+      <label class="form-label">Contato (site, e-mail ou telefone)</label>
+      <input class="form-control" name="contato" required>
+    </div>
+    <button type="submit" class="btn btn-outline-gold">Cadastrar</button>
+  </form>
+</div>
 {% endblock %}

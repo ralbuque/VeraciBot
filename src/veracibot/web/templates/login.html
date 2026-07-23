@@ -1,11 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Entrar</h1>
-{% if msg %}<p class="empty">{{ msg }}</p>{% endif %}
-<form method="post" class="authform">
-  <label>E-mail <input type="email" name="email" required></label>
-  <label>Senha <input type="password" name="password" required></label>
-  <button type="submit">Entrar</button>
-</form>
-<p class="sub">Ainda não tem cadastro? <a href="/registro">Cadastre seu escritório</a>.</p>
+<div class="col-12 col-md-6 col-lg-5 mx-auto">
+  <h1 class="h2">Entrar</h1>
+  {% if msg %}<div class="alert alert-warning mt-3">{{ msg }}</div>{% endif %}
+  <form method="post" class="card p-4 mt-3 d-flex flex-column gap-3">
+    <div>
+      <label class="form-label">E-mail</label>
+      <input class="form-control" type="email" name="email" required>
+    </div>
+    <div>
+      <label class="form-label">Senha</label>
+      <input class="form-control" type="password" name="password" required>
+    </div>
+    <button type="submit" class="btn btn-outline-gold">Entrar</button>
+  </form>
+  <p class="text-secondary mt-3">Ainda não tem cadastro?
+    <a href="/registro">Cadastre seu escritório</a>.</p>
+</div>
 {% endblock %}

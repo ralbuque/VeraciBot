@@ -1,57 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>{{ t.cases_title }}</h1>
-<p class="sub">{{ t.cases_sub }}</p>
-{% if cases %}
-<div class="cases">
+<h1 class="h2">{{ t.cases_title }}</h1>
+<p class="text-secondary">{{ t.cases_sub }}</p>
+<div class="d-flex flex-column gap-3 mt-4">
   {% for c in cases %}
-  <article class="case">
-    <div class="case-head">
+  <article class="card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
       {% if c.status == 'aguardando_provas' %}
-        <span class="badge evidence">{{ t.case_evidence }}</span>
+        <span class="badge rounded-pill evidence">{{ t.case_evidence }}</span>
       {% elif not c.julgavel %}
-        <span class="badge declined">{{ t.case_declined }}</span>
+        <span class="badge rounded-pill declined">{{ t.case_declined }}</span>
       {% elif c.tipo == 'fact_check' %}
-        <span class="badge fact">{{ t.case_fact }}</span>
+        <span class="badge rounded-pill fact">{{ t.case_fact }}</span>
       {% else %}
-        <span class="badge dispute">{{ t.case_dispute }}</span>
+        <span class="badge rounded-pill dispute">{{ t.case_dispute }}</span>
       {% endif %}
-      <span class="date"><a href="{{ p.case_base }}/{{ c.id }}">{{ t.case_label }} #{{ c.id[-6:] }}</a> · {{ c.date }}</span>
+      <span class="text-secondary small">
+        <a href="{{ p.case_base }}/{{ c.id }}">{{ t.case_label }} #{{ c.id[-6:] }}</a> · {{ c.date }}
+      </span>
     </div>
 
     {% if c.julgavel and c.tipo == 'fact_check' %}
-      <h3>
+      <h3 class="h5">
         {% if c.fatual == 'verdadeiro' %}{{ t.verdict_true }}
         {% elif c.fatual == 'falso' %}{{ t.verdict_false }}
         {% elif c.fatual == 'parcialmente_verdadeiro' %}{{ t.verdict_partial }}
         {% else %}{{ t.verdict_undetermined }}{% endif %}
       </h3>
       {% if c.afirmacao %}<p class="claim">“{{ c.afirmacao }}”</p>{% endif %}
-    {% elif c.julgavel %}
-      <h3>
+    {% elif c.julgavel and c.status != 'aguardando_provas' %}
+      <h3 class="h5">
         {% if c.vencedor == 'empate' %}⚖️ {{ t.tie }}
         {% elif c.vencedor %}⚖️ {{ t.winner }}: @{{ c.vencedor }}
         {% else %}⚖️{% endif %}
       </h3>
     {% endif %}
 
-    {% if c.resumo %}<p class="resumo">{{ c.resumo }}</p>{% endif %}
-    {% if c.justificativa %}<p class="just">{{ c.justificativa }}</p>{% endif %}
+    {% if c.resumo %}<p class="mb-1">{{ c.resumo }}</p>{% endif %}
+    {% if c.justificativa %}<p class="text-secondary small mb-2">{{ c.justificativa }}</p>{% endif %}
 
     {% if c.placar %}
-    <p class="placar">📊
+    <p class="small mb-2">📊
       {% for username, delta in c.placar %}
-        <span class="{{ 'pos' if delta > 0 else 'neg' }}">@{{ username }} {{ '+' if delta > 0 }}{{ delta }}</span>
+        <span class="{{ 'pos' if delta > 0 else 'neg' }} me-2">@{{ username }} {{ '+' if delta > 0 }}{{ delta }}</span>
       {% endfor %}
     </p>
     {% endif %}
 
-    <a class="xlink" href="{{ p.case_base }}/{{ c.id }}">{{ t.case_label }} #{{ c.id[-6:] }} →</a>
-    &nbsp; <a class="xlink" href="{{ c.url }}">{{ t.view_on_x }} →</a>
+    <div class="small">
+      <a href="{{ p.case_base }}/{{ c.id }}">{{ t.case_label }} #{{ c.id[-6:] }} →</a>
+      <span class="text-secondary mx-1">·</span>
+      <a href="{{ c.url }}">{{ t.view_on_x }} →</a>
+    </div>
   </article>
+  {% else %}
+  <p class="text-secondary">{{ t.no_cases }}</p>
   {% endfor %}
 </div>
-{% else %}
-<p class="empty">{{ t.no_cases }}</p>
-{% endif %}
 {% endblock %}

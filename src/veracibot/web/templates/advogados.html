@@ -1,40 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>{{ t.law_title }}</h1>
-<p class="sub">{{ t.law_sub }}</p>
+<h1 class="h2">{{ t.law_title }}</h1>
+<p class="text-secondary">{{ t.law_sub }}</p>
 
-<form method="get" class="filter">
-  <select name="uf">
-    <option value="">{{ t.law_all_ufs }}</option>
-    {% for sigla in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
-    <option value="{{ sigla }}" {{ 'selected' if uf == sigla }}>{{ sigla }}</option>
-    {% endfor %}
-  </select>
-  <button type="submit">{{ t.law_filter }}</button>
+<form method="get" class="row g-2 align-items-center mt-2 mb-4">
+  <div class="col-auto">
+    <select name="uf" class="form-select">
+      <option value="">{{ t.law_all_ufs }}</option>
+      {% for sigla in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+      <option value="{{ sigla }}" {{ 'selected' if uf == sigla }}>{{ sigla }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-outline-gold">{{ t.law_filter }}</button>
+  </div>
 </form>
 
 {% if firms %}
-<table class="board">
-  <thead>
-    <tr><th>{{ t.law_col_name }}</th><th>OAB</th><th>UF</th>
-        <th>{{ t.law_col_city }}</th><th>{{ t.law_col_areas }}</th>
-        <th>{{ t.law_col_contact }}</th></tr>
-  </thead>
-  <tbody>
-    {% for f in firms %}
-    <tr>
-      <td>{{ f.name }}</td><td>{{ f.oab }}</td><td>{{ f.uf }}</td>
-      <td>{{ f.cidade }}</td><td>{{ f.areas }}</td><td>{{ f.contato }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr><th>{{ t.law_col_name }}</th><th>OAB</th><th>UF</th>
+          <th>{{ t.law_col_city }}</th><th>{{ t.law_col_areas }}</th>
+          <th>{{ t.law_col_contact }}</th></tr>
+    </thead>
+    <tbody>
+      {% for f in firms %}
+      <tr>
+        <td>{{ f.name }}</td><td>{{ f.oab }}</td><td>{{ f.uf }}</td>
+        <td>{{ f.cidade }}</td><td>{{ f.areas }}</td><td>{{ f.contato }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p class="empty">{{ t.law_empty }}</p>
+<p class="text-secondary">{{ t.law_empty }}</p>
 {% endif %}
 
-<section class="why">
-  <h2>{{ t.law_cta_title }}</h2>
-  <p>{{ t.law_cta }} <a href="/registro">{{ t.law_cta_link }}</a></p>
-</section>
+<div class="card border-gold p-4 mt-5">
+  <h2 class="h5">{{ t.law_cta_title }}</h2>
+  <p class="mb-0">{{ t.law_cta }} <a href="/registro">{{ t.law_cta_link }}</a></p>
+</div>
 {% endblock %}
