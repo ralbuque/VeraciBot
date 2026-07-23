@@ -34,6 +34,7 @@ class Config:
     judge_web_search: bool
     invite_only: bool
     max_reply_len: int
+    appeal_quorum: int
 
 
 def load_config() -> Config:
@@ -53,4 +54,5 @@ def load_config() -> Config:
         judge_web_search=os.environ.get("JUDGE_WEB_SEARCH", "true").lower() == "true",
         invite_only=os.environ.get("INVITE_ONLY", "false").lower() == "true",
         max_reply_len=int(os.environ.get("MAX_REPLY_LEN", "280")),
+        appeal_quorum=int(os.environ.get("APPEAL_QUORUM", "5")),
     )

@@ -204,6 +204,29 @@ class Judge:
         )
         return verdict
 
+    def interpret_appeal(self, mention_text: str, loser: str) -> bool:
+        """A parte perdedora respondeu na thread: isso é um pedido de recurso?"""
+        message = self.client.messages.create(
+            model=self.cfg.anthropic_model,
+            max_tokens=100,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"@{loser} perdeu um julgamento do tribunal e respondeu na "
+                        f"thread:\n\n\"{mention_text}\"\n\n"
+                        "Isso expressa DISCORDÂNCIA da sentença / pedido de recurso "
+                        "ou revisão? (Desculpas, aceitação ou outro assunto = false.) "
+                        'Responda SOMENTE o JSON {"recurso": true} ou {"recurso": false}.'
+                    ),
+                }
+            ],
+        )
+        try:
+            return bool(_extract_json(message).get("recurso"))
+        except (ValueError, json.JSONDecodeError):
+            return False
+
     def interpret_confirmation(self, mention_text: str, comp: dict) -> bool:
         """O vencedor respondeu numa composição pendente: isso confirma o cumprimento?"""
         message = self.client.messages.create(

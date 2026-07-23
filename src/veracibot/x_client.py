@@ -136,6 +136,39 @@ class XClient:
         thread = sorted(tweets.values(), key=lambda t: int(t["id"]))
         return thread[:max_tweets]
 
+    def post_poll(self, text: str, options: list[str], minutes: int,
+                  in_reply_to_tweet_id: str) -> str | None:
+        """Posta uma enquete como reply. Retorna o id do tweet ou None se proibido."""
+        try:
+            resp = self.client.create_tweet(
+                text=text,
+                poll_options=options,
+                poll_duration_minutes=minutes,
+                in_reply_to_tweet_id=in_reply_to_tweet_id,
+            )
+        except tweepy.errors.Forbidden as e:
+            log.warning("Enquete proibida pelo X em %s: %s", in_reply_to_tweet_id, e)
+            return None
+        tweet_id = str(resp.data["id"]) if resp.data else None
+        log.info("Enquete postada: %s", tweet_id)
+        return tweet_id
+
+    def fetch_poll_results(self, tweet_id: str) -> dict | None:
+        """Resultado da enquete: {'closed': bool, 'votes': {label: n}} ou None."""
+        resp = self.client.get_tweets(
+            ids=[tweet_id],
+            expansions=["attachments.poll_ids"],
+            poll_fields=["options", "voting_status"],
+        )
+        polls = (resp.includes or {}).get("polls") or []
+        if not polls:
+            return None
+        poll = polls[0]
+        return {
+            "closed": poll.voting_status == "closed",
+            "votes": {opt["label"]: opt["votes"] for opt in poll.options},
+        }
+
     def post_reply(self, text: str, in_reply_to_tweet_id: str,
                    fallback: str | None = None) -> str | None:
         """Posta um reply. Se o X recusar (403) e houver `fallback` (versão curta),

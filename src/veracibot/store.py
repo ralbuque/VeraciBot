@@ -49,6 +49,25 @@ CREATE TABLE IF NOT EXISTS compositions (
     created_at TEXT NOT NULL,
     resolved_at TEXT
 );
+CREATE TABLE IF NOT EXISTS appeals (
+    conversation_id TEXT PRIMARY KEY,
+    appellant_id TEXT NOT NULL,
+    appellant_username TEXT,
+    opponent_username TEXT,
+    poll_tweet_id TEXT NOT NULL,
+    ends_at TEXT NOT NULL,
+    status TEXT NOT NULL,           -- aberta | mantida | reformada
+    created_at TEXT NOT NULL,
+    resolved_at TEXT
+);
+CREATE TABLE IF NOT EXISTS appeal_votes (
+    conversation_id TEXT NOT NULL,
+    voter_id TEXT NOT NULL,
+    voter_username TEXT,
+    choice_username TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (conversation_id, voter_id)
+);
 CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
@@ -239,6 +258,74 @@ class Store:
             (status, datetime.now(timezone.utc).isoformat(), conversation_id),
         )
         self.conn.commit()
+
+    # --- recursos (apelação) ---
+    def create_appeal(self, conversation_id: str, appellant_id: str,
+                      appellant_username: str, opponent_username: str,
+                      poll_tweet_id: str, ends_at: str) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO appeals (conversation_id, appellant_id, "
+            "appellant_username, opponent_username, poll_tweet_id, ends_at, "
+            "status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'aberta', ?)",
+            (conversation_id, appellant_id, appellant_username, opponent_username,
+             poll_tweet_id, ends_at, datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def get_appeal(self, conversation_id: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT * FROM appeals WHERE conversation_id = ?", (conversation_id,)
+        ).fetchone()
+        return self._appeal_dict(row)
+
+    def open_appeals(self) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT * FROM appeals WHERE status = 'aberta'"
+        ).fetchall()
+        return [self._appeal_dict(r) for r in rows]
+
+    def _appeal_dict(self, row) -> dict | None:
+        if not row:
+            return None
+        cols = [d[0] for d in self.conn.execute(
+            "SELECT * FROM appeals LIMIT 0").description]
+        return dict(zip(cols, row))
+
+    def record_vote(self, conversation_id: str, voter_id: str,
+                    voter_username: str, choice_username: str) -> None:
+        """Registra (ou troca) o voto de um membro no recurso."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO appeal_votes (conversation_id, voter_id, "
+            "voter_username, choice_username, created_at) VALUES (?, ?, ?, ?, ?)",
+            (conversation_id, voter_id, voter_username, choice_username.lower(),
+             datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def count_votes(self, conversation_id: str) -> dict:
+        rows = self.conn.execute(
+            "SELECT choice_username, COUNT(*) FROM appeal_votes "
+            "WHERE conversation_id = ? GROUP BY choice_username",
+            (conversation_id,),
+        ).fetchall()
+        return dict(rows)
+
+    def resolve_appeal(self, conversation_id: str, status: str) -> None:
+        self.conn.execute(
+            "UPDATE appeals SET status = ?, resolved_at = ? WHERE conversation_id = ?",
+            (status, datetime.now(timezone.utc).isoformat(), conversation_id),
+        )
+        self.conn.commit()
+
+    def case_deltas(self, conversation_id: str) -> list[dict]:
+        """Somatório de pontos do julgamento (sem custos/estornos) por usuário."""
+        rows = self.conn.execute(
+            "SELECT user_id, username, SUM(delta) AS total FROM ledger "
+            "WHERE conversation_id = ? AND (reason LIKE 'fact_check:%' "
+            "OR reason LIKE 'disputa:%' OR reason = 'reforma_recurso') "
+            "GROUP BY user_id", (conversation_id,)
+        ).fetchall()
+        return [{"user_id": r[0], "username": r[1], "total": r[2]} for r in rows]
 
     # --- pontuação ---
     def get_balance(self, user_id: str, username: str | None = None) -> int:

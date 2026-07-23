@@ -108,6 +108,19 @@ como indício não autenticável; links públicos pesam mais) e decide por prepo
 de evidências. Prazo vencido sem prova: a alegação é julgada improcedente e o
 alegante perde. Pontos e composição só são aplicados no veredito final.
 
+## Recurso (votação popular)
+
+O **perdedor** pode apelar uma vez por caso, respondendo na thread com menção ao bot
+expressando discordância (interpretada por IA). Custa **5 pontos**. O bot abre a
+**votação do júri popular por 24h**: membros votam respondendo na thread
+`@veracibot voto @fulano`. Só contam votos de **membros convidados** (imune a spam
+de contas fake); as partes não votam; cada membro tem 1 voto e pode trocá-lo até o
+fim. Com quorum (`APPEAL_QUORUM` no `.env`, padrão 5) e maioria pelo apelante, a
+sentença é **reformada**: pontuação invertida (cada parte recebe o resultado da
+outra), os 5 pontos voltam e composição pendente é cancelada. Empate, minoria ou
+falta de quorum: sentença **mantida** e os 5 pontos não retornam. O acórdão sai
+como reply do anúncio da votação.
+
 ## Composição
 
 Quando há vencedor e perdedor claros (caso leve), o veredito propõe composição:
