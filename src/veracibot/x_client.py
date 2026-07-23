@@ -62,6 +62,23 @@ class XClient:
         mentions.sort(key=lambda m: int(m["id"]))  # mais antigas primeiro
         return mentions
 
+    def fetch_own_invites(self, since_id: str | None) -> list[dict]:
+        """Tweets do próprio bot contendo 'convido' (convites do dono, sem limite)."""
+        resp = self.client.search_recent_tweets(
+            query=f'from:{self.cfg.bot_handle} "convido"',
+            since_id=since_id,
+            max_results=10,
+            tweet_fields=TWEET_FIELDS,
+            expansions=EXPANSIONS,
+            user_fields=USER_FIELDS,
+        )
+        if not resp.data:
+            return []
+        users = _index_users(resp.includes)
+        tweets = [_tweet_to_dict(t, users) for t in resp.data]
+        tweets.sort(key=lambda m: int(m["id"]))
+        return tweets
+
     def fetch_thread(self, conversation_id: str, max_tweets: int) -> list[dict]:
         """Reconstrói a thread: tweet raiz + replies da conversa, em ordem cronológica.
 

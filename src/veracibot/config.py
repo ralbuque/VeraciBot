@@ -32,6 +32,7 @@ class Config:
     post_replies: bool
     max_thread_tweets: int
     judge_web_search: bool
+    invite_only: bool
 
 
 def load_config() -> Config:
@@ -49,4 +50,5 @@ def load_config() -> Config:
         post_replies=os.environ.get("POST_REPLIES", "true").lower() == "true",
         max_thread_tweets=int(os.environ.get("MAX_THREAD_TWEETS", "50")),
         judge_web_search=os.environ.get("JUDGE_WEB_SEARCH", "true").lower() == "true",
+        invite_only=os.environ.get("INVITE_ONLY", "false").lower() == "true",
     )

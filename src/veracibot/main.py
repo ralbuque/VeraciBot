@@ -4,6 +4,8 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from .config import load_config
+from .invites import (INVITES_PER_MEMBER, NO_INVITES_LEFT, NOT_INVITED, WELCOME,
+                      parse_invites)
 from .judge import Judge
 from .reply import JUSTICE_LINE, composition_line, format_reply
 from .scoring import CALL_COST, apply_scores, resolve_user_id
@@ -25,9 +27,30 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
     requester = mention["author_username"] or "desconhecido"
     requester_id = mention["author_id"]
 
+    # Convite via menção de um membro ("@veracibot convido @fulano")?
+    invited = parse_invites(mention["text"], exclude={cfg.bot_handle.lower(),
+                                                      requester.lower()})
+    if invited:
+        handle_member_invites(mention, invited, x, store, cfg)
+        return
+
     if store.case_exists(conv_id):
         handle_confirmation(mention, x, judge, store, cfg)
         return
+
+    # Modo convite: só membros abrem casos
+    if cfg.invite_only and not store.is_member(requester):
+        if not store.was_rejection_notified(requester):
+            store.mark_rejection_notified(requester)
+            log.info("@%s não é membro; avisando (uma vez).", requester)
+            if cfg.post_replies:
+                x.post_reply(NOT_INVITED.format(handle=requester),
+                             in_reply_to_tweet_id=mention["id"])
+        else:
+            log.info("@%s não é membro; ignorando em silêncio.", requester)
+        return
+    if store.is_member(requester):
+        store.set_member_user_id(requester, requester_id)
 
     # Saldo mínimo para abrir um caso
     balance = store.get_balance(requester_id, requester)
@@ -135,6 +158,65 @@ def handle_confirmation(mention: dict, x: XClient, judge: Judge, store: Store, c
         )
 
 
+def handle_member_invites(mention, invited, x, store, cfg) -> None:
+    """Um membro convidando gente via menção. Consome do saldo de 5 convites."""
+    inviter = (mention["author_username"] or "").lower()
+    member = store.get_member(inviter)
+    if not member:
+        if cfg.invite_only and not store.was_rejection_notified(inviter):
+            store.mark_rejection_notified(inviter)
+            if cfg.post_replies:
+                x.post_reply(NOT_INVITED.format(handle=inviter),
+                             in_reply_to_tweet_id=mention["id"])
+        return
+
+    accepted, failed = [], []
+    for handle in invited:
+        if store.is_member(handle):
+            continue  # já é membro; não consome convite
+        if store.get_member(inviter)["invites_left"] <= 0:
+            failed.append("@" + handle)
+            continue
+        store.add_member(handle, invited_by=inviter, invites=INVITES_PER_MEMBER)
+        store.use_invite(inviter)
+        accepted.append("@" + handle)
+
+    log.info("Convites de @%s: aceitos=%s esgotados=%s", inviter, accepted, failed)
+    if cfg.post_replies:
+        if accepted:
+            x.post_reply(
+                WELCOME.format(handles=" ".join(accepted), n=INVITES_PER_MEMBER),
+                in_reply_to_tweet_id=mention["id"],
+            )
+        elif failed:
+            x.post_reply(
+                NO_INVITES_LEFT.format(handle=inviter, n=INVITES_PER_MEMBER,
+                                       failed=" ".join(failed)),
+                in_reply_to_tweet_id=mention["id"],
+            )
+
+
+def poll_owner_invites(x: XClient, store: Store, cfg) -> None:
+    """Tweets do próprio @veracibot com 'Convido @fulano': convites sem limite."""
+    since = store.get_state("own_invites_since_id")
+    for tweet in x.fetch_own_invites(since):
+        handles = parse_invites(tweet["text"], exclude={cfg.bot_handle.lower()})
+        accepted = []
+        for handle in handles:
+            if not store.is_member(handle):
+                store.add_member(handle, invited_by=cfg.bot_handle,
+                                 invites=INVITES_PER_MEMBER)
+                accepted.append("@" + handle)
+        if accepted:
+            log.info("Convites do dono: %s", accepted)
+            if cfg.post_replies:
+                x.post_reply(
+                    WELCOME.format(handles=" ".join(accepted), n=INVITES_PER_MEMBER),
+                    in_reply_to_tweet_id=tweet["id"],
+                )
+        store.set_state("own_invites_since_id", tweet["id"])
+
+
 def run() -> None:
     cfg = load_config()
     store = Store(cfg.db_path)
@@ -153,6 +235,7 @@ def run() -> None:
             for mention in mentions:
                 process_mention(mention, x, judge, store, cfg)
                 store.set_since_id(mention["id"])
+            poll_owner_invites(x, store, cfg)
         except Exception:
             log.exception("Erro no ciclo de polling")
         time.sleep(cfg.poll_interval_seconds)

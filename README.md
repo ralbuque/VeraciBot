@@ -67,6 +67,15 @@ Execução em foreground (debug): `source .venv/bin/activate && python -m src.ve
   `MAX_THREAD_TWEETS` limita o custo por caso.
 - O juiz recusa casos sem disputa clara, pedidos de assédio ou acusações graves.
 
+## Convites
+
+Com `INVITE_ONLY=true` no `.env`, só membros convidados abrem casos (controle do
+consumo de cota da X API). Não-convidados recebem o aviso uma única vez. Convites:
+
+- **Dono**: a conta @veracibot tweeta `Convido @fulano` — sem limite.
+- **Membros**: respondem `@veracibot convido @fulano` — cada membro tem **5 convites**.
+- Convidado recebe boas-vindas com link para o site; quem já é membro não consome convite.
+
 ## Pontuação (fact-check)
 
 Todo handle começa com **1000 pontos**. Chamar o bot custa 1 ponto (exige saldo ≥ 1;

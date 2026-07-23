@@ -26,6 +26,17 @@ CREATE TABLE IF NOT EXISTS scores (
     balance INTEGER NOT NULL,
     updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS members (
+    username TEXT PRIMARY KEY,      -- lowercase, sem @
+    user_id TEXT,
+    invited_by TEXT,
+    invites_left INTEGER NOT NULL DEFAULT 5,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS rejected_notices (
+    username TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS compositions (
     conversation_id TEXT PRIMARY KEY,
     tipo TEXT,
@@ -70,6 +81,75 @@ class Store:
             "INSERT INTO state (key, value) VALUES ('since_id', ?) "
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (since_id,),
+        )
+        self.conn.commit()
+
+    # --- estado genérico ---
+    def get_state(self, key: str) -> str | None:
+        row = self.conn.execute(
+            "SELECT value FROM state WHERE key = ?", (key,)
+        ).fetchone()
+        return row[0] if row else None
+
+    def set_state(self, key: str, value: str) -> None:
+        self.conn.execute(
+            "INSERT INTO state (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+        self.conn.commit()
+
+    # --- membros (sistema de convites) ---
+    def get_member(self, username: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT username, user_id, invited_by, invites_left FROM members "
+            "WHERE username = ?", (username.lower(),)
+        ).fetchone()
+        if not row:
+            return None
+        return {"username": row[0], "user_id": row[1],
+                "invited_by": row[2], "invites_left": row[3]}
+
+    def is_member(self, username: str) -> bool:
+        return self.get_member(username) is not None
+
+    def add_member(self, username: str, invited_by: str,
+                   user_id: str | None = None, invites: int = 5) -> None:
+        self.conn.execute(
+            "INSERT OR IGNORE INTO members (username, user_id, invited_by, "
+            "invites_left, created_at) VALUES (?, ?, ?, ?, ?)",
+            (username.lower(), user_id, invited_by.lower(), invites,
+             datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def use_invite(self, username: str) -> int:
+        """Consome 1 convite; retorna quantos restam."""
+        self.conn.execute(
+            "UPDATE members SET invites_left = invites_left - 1 "
+            "WHERE username = ? AND invites_left > 0", (username.lower(),)
+        )
+        self.conn.commit()
+        m = self.get_member(username)
+        return m["invites_left"] if m else 0
+
+    def set_member_user_id(self, username: str, user_id: str) -> None:
+        self.conn.execute(
+            "UPDATE members SET user_id = ? WHERE username = ?",
+            (user_id, username.lower()),
+        )
+        self.conn.commit()
+
+    def was_rejection_notified(self, username: str) -> bool:
+        return self.conn.execute(
+            "SELECT 1 FROM rejected_notices WHERE username = ?",
+            (username.lower(),),
+        ).fetchone() is not None
+
+    def mark_rejection_notified(self, username: str) -> None:
+        self.conn.execute(
+            "INSERT OR IGNORE INTO rejected_notices (username, created_at) VALUES (?, ?)",
+            (username.lower(), datetime.now(timezone.utc).isoformat()),
         )
         self.conn.commit()
 
