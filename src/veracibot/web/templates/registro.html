@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Cadastro de escritório / advogado(a)</h1>
+<p class="sub">Após o cadastro, seu perfil passa por aprovação antes de aparecer no
+diretório de parceiros indicado pelo tribunal.</p>
+{% if msg %}<p class="empty">{{ msg }}</p>{% endif %}
+<form method="post" class="authform">
+  <label>E-mail <input type="email" name="email" required></label>
+  <label>Senha (mín. 8) <input type="password" name="password" minlength="8" required></label>
+  <label>Nome do escritório/advogado(a) <input name="name" required></label>
+  <label>OAB <input name="oab" placeholder="OAB/SP 123456"></label>
+  <label>UF
+    <select name="uf" required>
+      {% for sigla in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+      <option value="{{ sigla }}">{{ sigla }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Cidade <input name="cidade"></label>
+  <label>Áreas de atuação <input name="areas" placeholder="Consumidor, Cível, Trabalhista"></label>
+  <label>Contato (site, e-mail ou telefone) <input name="contato" required></label>
+  <button type="submit">Cadastrar</button>
+</form>
+{% endblock %}

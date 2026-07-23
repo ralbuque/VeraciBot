@@ -35,6 +35,7 @@ class Config:
     invite_only: bool
     max_reply_len: int
     appeal_quorum: int
+    site_url: str
 
 
 def load_config() -> Config:
@@ -55,4 +56,5 @@ def load_config() -> Config:
         invite_only=os.environ.get("INVITE_ONLY", "false").lower() == "true",
         max_reply_len=int(os.environ.get("MAX_REPLY_LEN", "280")),
         appeal_quorum=int(os.environ.get("APPEAL_QUORUM", "5")),
+        site_url=os.environ.get("SITE_URL", "https://veraci.bot").rstrip("/"),
     )

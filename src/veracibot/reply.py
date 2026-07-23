@@ -50,6 +50,7 @@ def format_reply(
     scores: list | None = None,
     extra: str | None = None,
     max_len: int = MAX_LEN,
+    case_url: str | None = None,
 ) -> str:
     """Monta o reply; `scores` = [(username, delta, saldo)]; `extra` = linha de composição.
 
@@ -60,7 +61,7 @@ def format_reply(
         text = "⚖️ Caso arquivado: " + (
             verdict.get("motivo_recusa") or "não identifiquei uma disputa julgável nesta thread."
         )
-        return _compose(text, scores, extra, max_len)
+        return _compose(text, scores, extra, max_len, case_url)
 
     curto = verdict.get("veredito_curto") or verdict.get("justificativa", "")
     if max_len > 400:
@@ -71,7 +72,7 @@ def format_reply(
             verdict.get("veredito_fatual") or "indeterminado",
             FACT_LABELS["indeterminado"],
         )
-        return _compose(f"{label}. {curto}", scores, extra, max_len)
+        return _compose(f"{label}. {curto}", scores, extra, max_len, case_url)
 
     # disputa
     vencedor = verdict.get("vencedor")
@@ -81,7 +82,7 @@ def format_reply(
         header = f"⚖️ Veredito: @{vencedor.lstrip('@')} tem razão. "
     else:
         header = "⚖️ Veredito: "
-    return _compose(header + curto, scores, extra, max_len)
+    return _compose(header + curto, scores, extra, max_len, case_url)
 
 
 def format_scoreboard(scores: list) -> str:
@@ -90,12 +91,14 @@ def format_scoreboard(scores: list) -> str:
 
 
 def _compose(text: str, scores: list | None, extra: str | None = None,
-             max_len: int = MAX_LEN) -> str:
+             max_len: int = MAX_LEN, case_url: str | None = None) -> str:
     tail = ""
     if scores:
         tail += "\n\n" + format_scoreboard(scores) if max_len > 400 else "\n" + format_scoreboard(scores)
     if extra:
         tail += "\n" + extra
+    if case_url:
+        tail += "\n📄 " + case_url
     if not tail:
         return _trim(text, max_len)
     budget = max_len - x_len(tail)

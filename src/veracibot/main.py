@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from .config import load_config
+from .geo import extract_uf
 from .invites import (INVITER_BALANCE, INVITES_PER_MEMBER, NO_INVITES_LEFT,
                       NOT_INVITED, WELCOME, parse_invites)
 from .judge import Judge
@@ -117,14 +118,18 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         )
         extra = open_composition(verdict, scores, thread, requester_id, requester,
                                  conv_id, store)
+        if verdict.get("julgavel") and verdict.get("gravidade") == "grave":
+            extra = f"{JUSTICE_LINE}\n👩‍⚖️ Advogados parceiros: {cfg.site_url}/advogados"
         # Mostra o custo da chamada no placar quando o chamador não é parte apostadora.
         if all(u.lower() != requester.lower() for u, _, _ in scores):
             scores.append((requester, -CALL_COST, balance_after_cost))
 
         reply_id = None
         if cfg.post_replies:
-            reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len)
-            fallback = (format_reply(verdict, scores, extra)
+            case_url = f"{cfg.site_url}/caso/{conv_id}"
+            reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len,
+                                      case_url)
+            fallback = (format_reply(verdict, scores, extra, case_url=case_url)
                         if cfg.max_reply_len > 280 else None)
             reply_id = x.post_reply(reply_text, in_reply_to_tweet_id=mention["id"],
                                     fallback=fallback)
@@ -143,7 +148,7 @@ def open_composition(verdict, scores, thread, requester_id, requester, conv_id, 
     if not verdict.get("julgavel"):
         return None
     if verdict.get("gravidade") == "grave":
-        return JUSTICE_LINE
+        return None  # main anexa a linha da justiça + advogados (precisa do cfg)
 
     losers = [u for u, d, _ in scores if d <= -10]
     winners = [u for u, d, _ in scores if d > 0]
@@ -193,10 +198,14 @@ def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
         scores = apply_scores(store, verdict, requester_id, requester, thread, conv_id)
         extra = open_composition(verdict, scores, thread, requester_id, requester,
                                  conv_id, store)
+        if verdict.get("julgavel") and verdict.get("gravidade") == "grave":
+            extra = f"{JUSTICE_LINE}\n👩‍⚖️ Advogados parceiros: {cfg.site_url}/advogados"
         reply_id = None
         if cfg.post_replies:
-            reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len)
-            fallback = (format_reply(verdict, scores, extra)
+            case_url = f"{cfg.site_url}/caso/{conv_id}"
+            reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len,
+                                      case_url)
+            fallback = (format_reply(verdict, scores, extra, case_url=case_url)
                         if cfg.max_reply_len > 280 else None)
             reply_id = x.post_reply(reply_text, in_reply_to_tweet_id=mention["id"],
                                     fallback=fallback)
@@ -289,6 +298,32 @@ def handle_vote(mention: dict, appeal: dict, store: Store, cfg) -> None:
         return
     store.record_vote(conv_id, mention["author_id"], voter, choice)
     log.info("Voto registrado em %s: @%s → @%s.", conv_id, voter, choice)
+
+
+def check_expired_compositions(x: XClient, store: Store, cfg) -> None:
+    """Composições com prazo vencido: encerra e indica advogados parceiros."""
+    now = datetime.now(timezone.utc).isoformat()
+    for comp in store.expired_pending_compositions(now):
+        if not comp:
+            continue
+        conv_id = comp["conversation_id"]
+        store.resolve_composition(conv_id, "expirada")
+        log.info("Composição expirada sem acordo em %s.", conv_id)
+        case = store.get_case(conv_id)
+        reply_to = (case or {}).get("reply_tweet_id") or (case or {}).get("mention_tweet_id")
+        if not (cfg.post_replies and reply_to):
+            continue
+        url = f"{cfg.site_url}/advogados"
+        uf = extract_uf(x.get_user_location(comp["winner_username"]))
+        if uf:
+            url += f"?uf={uf}"
+        x.post_reply(
+            f"⏳ O prazo de composição venceu sem acordo entre "
+            f"@{comp['winner_username']} e @{comp['loser_username']}. "
+            f"Para levar o caso adiante na justiça real, veja os advogados "
+            f"parceiros do tribunal: {url}",
+            in_reply_to_tweet_id=reply_to,
+        )
 
 
 def check_appeals(x: XClient, store: Store, cfg) -> None:
@@ -451,6 +486,7 @@ def run() -> None:
                 store.set_since_id(mention["id"])
             poll_owner_invites(x, store, cfg)
             check_appeals(x, store, cfg)
+            check_expired_compositions(x, store, cfg)
         except Exception:
             log.exception("Erro no ciclo de polling")
         time.sleep(cfg.poll_interval_seconds)

@@ -14,6 +14,12 @@
   <div><strong>{{ stats.users }}</strong><span>{{ t.stats_users }}</span></div>
 </section>
 
+<section class="why">
+  <h2>{{ t.why_title }}</h2>
+  <p>{{ t.why_p1 }}</p>
+  <p>{{ t.why_p2 }}</p>
+</section>
+
 <section>
   <h2>{{ t.how_title }}</h2>
   <div class="cards">
@@ -21,6 +27,15 @@
     <div class="card"><h3>{{ t.how_2_t }}</h3><p>{{ t.how_2 }}</p></div>
     <div class="card"><h3>{{ t.how_3_t }}</h3><p>{{ t.how_3 }}</p></div>
   </div>
+</section>
+
+<section>
+  <h2>{{ t.process_title }}</h2>
+  <table class="rules">
+    {% for step in t.process_steps %}
+    <tr><td>{{ loop.index }}.</td><td>{{ step }}</td></tr>
+    {% endfor %}
+  </table>
 </section>
 
 <section>

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ p.cases }}">{{ t.back_to_cases }}</a></p>
+<div class="case-head">
+  <h1>{{ t.case_label }} #{{ case.id }}</h1>
+  <span class="date">{{ case.date }}</span>
+</div>
+
+<article class="case">
+  <div class="case-head">
+    {% if case.status == 'aguardando_provas' %}
+      <span class="badge evidence">{{ t.case_evidence }}</span>
+    {% elif not case.julgavel %}
+      <span class="badge declined">{{ t.case_declined }}</span>
+    {% elif case.tipo == 'fact_check' %}
+      <span class="badge fact">{{ t.case_fact }}</span>
+    {% else %}
+      <span class="badge dispute">{{ t.case_dispute }}</span>
+    {% endif %}
+  </div>
+
+  {% if case.status == 'aguardando_provas' %}
+    <p class="resumo">{{ case.contradicao }}</p>
+    <p class="just">📎 {{ t.onus_label }}: @{{ case.onus }} — “{{ case.fato_a_provar }}”</p>
+  {% else %}
+    {% if case.julgavel and case.tipo == 'fact_check' %}
+      <h3>
+        {% if case.fatual == 'verdadeiro' %}{{ t.verdict_true }}
+        {% elif case.fatual == 'falso' %}{{ t.verdict_false }}
+        {% elif case.fatual == 'parcialmente_verdadeiro' %}{{ t.verdict_partial }}
+        {% else %}{{ t.verdict_undetermined }}{% endif %}
+      </h3>
+      {% if case.afirmacao %}<p class="claim">“{{ case.afirmacao }}”</p>{% endif %}
+    {% elif case.julgavel %}
+      <h3>
+        {% if case.vencedor == 'empate' %}⚖️ {{ t.tie }}
+        {% elif case.vencedor %}⚖️ {{ t.winner }}: @{{ case.vencedor }}
+        {% else %}⚖️{% endif %}
+      </h3>
+    {% endif %}
+    {% if case.resumo %}<p class="resumo">{{ case.resumo }}</p>{% endif %}
+    {% if case.justificativa %}<p class="just">{{ case.justificativa }}</p>{% endif %}
+    {% if case.gravidade == 'grave' %}<p class="just">⚠️ {{ t.grave_warning }}</p>{% endif %}
+  {% endif %}
+
+  <a class="xlink" href="{{ case.url }}">{{ t.view_on_x }} →</a>
+</article>
+
+{% if case.placar %}
+<section>
+  <h2>📊 {{ t.ledger_title }}</h2>
+  <table class="board">
+    {% for username, delta in case.placar %}
+    <tr>
+      <td><a href="https://x.com/{{ username }}">@{{ username }}</a></td>
+      <td class="num {{ 'pos' if delta > 0 else 'neg' }}">{{ '+' if delta > 0 }}{{ delta }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+
+{% if case.composition %}
+<section>
+  <h2>🤝 {{ t.comp_title }}</h2>
+  <p class="just">@{{ case.composition.loser_username }} → @{{ case.composition.winner_username }}
+    · {{ t.get('st_' ~ case.composition.status, case.composition.status) }}
+    · {{ t.deadline_label }}: {{ case.composition.deadline[:10] }}</p>
+</section>
+{% endif %}
+
+{% if case.appeal %}
+<section>
+  <h2>🗳️ {{ t.appeal_title }}</h2>
+  <p class="just">@{{ case.appeal.appellant_username }} ×
+    @{{ case.appeal.opponent_username }}
+    · {{ t.get('st_' ~ case.appeal.status, case.appeal.status) }}</p>
+  {% if case.votes %}
+  <p class="just">
+    {% for choice, n in case.votes.items() %}
+      @{{ choice }}: {{ n }} {{ t.votes_label }}{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if case.thread %}
+<section>
+  <h2>📜 {{ t.thread_title }}</h2>
+  <div class="cases">
+    {% for tw in case.thread %}
+    <article class="case tweet">
+      <p class="claim">@{{ tw.author_username }} <span class="date">{{ (tw.created_at or '')[:16].replace('T',' ') }}</span></p>
+      <p>{{ tw.text }}</p>
+      {% if tw.media_urls %}<p class="just">🖼️ {{ tw.media_urls | length }} </p>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

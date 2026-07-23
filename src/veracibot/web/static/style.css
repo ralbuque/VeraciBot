@@ -58,6 +58,14 @@ h2 { color: var(--gold-soft); font-weight: normal; margin-bottom: 16px; font-siz
 .card h3 { color: var(--gold-soft); font-weight: normal; margin-bottom: 8px; font-size: 1.05rem; }
 .card p { color: var(--muted); font-size: .95rem; }
 
+/* manifesto microcausas */
+.why {
+  background: var(--panel); border: 1px solid var(--gold); border-radius: 8px;
+  padding: 28px 32px;
+}
+.why p { color: var(--text); margin-top: 10px; }
+.why p:last-child { color: var(--muted); }
+
 /* tabelas */
 table { width: 100%; border-collapse: collapse; margin-top: 14px; }
 .rules td, .board th, .board td { padding: 10px 14px; border-bottom: 1px solid var(--line); }
@@ -77,6 +85,10 @@ table { width: 100%; border-collapse: collapse; margin-top: 14px; }
 .badge.fact { border-color: #3d5a80; color: #98c1d9; }
 .badge.dispute { border-color: #8f7a1e; color: var(--gold-soft); }
 .badge.declined { border-color: #5a3d3d; color: var(--red); }
+.badge.evidence { border-color: #7a6a2a; color: #e0c96a; }
+.board .pos { color: var(--green); }
+.board .neg { color: var(--red); }
+.case.tweet { padding: 12px 16px; }
 .date { color: var(--muted); font-size: .85rem; }
 .case h3 { font-weight: normal; margin-bottom: 8px; }
 .claim { color: var(--muted); font-style: italic; margin-bottom: 8px; }
@@ -87,6 +99,23 @@ table { width: 100%; border-collapse: collapse; margin-top: 14px; }
 .placar .neg { color: var(--red); margin-right: 12px; }
 .xlink { font-size: .9rem; }
 .empty { color: var(--muted); margin-top: 30px; }
+
+/* formulários */
+.authform { max-width: 460px; display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+.authform label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: .95rem; }
+.authform input, .authform select, .filter select {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--text); padding: 9px 12px; font: inherit;
+}
+.authform button, .filter button, .board button {
+  background: transparent; border: 1px solid var(--gold); border-radius: 6px;
+  color: var(--gold-soft); padding: 8px 18px; font: inherit; cursor: pointer;
+}
+.authform button:hover, .filter button:hover, .board button:hover {
+  background: var(--gold); color: var(--bg);
+}
+.board button { padding: 4px 10px; font-size: .85rem; margin: 2px; }
+.filter { display: flex; gap: 10px; margin-top: 16px; }
 
 /* footer */
 footer { border-top: 1px solid var(--line); margin-top: 70px; padding: 26px 0; }

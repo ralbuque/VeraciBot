@@ -45,6 +45,17 @@ julgados (`/casos`). Porta configurável via `WEB_PORT` no `.env` (padrão 8000)
 Para publicar em https://veraci.bot, aponte um proxy/túnel (ex.: Cloudflare
 Tunnel) para `localhost:8000`.
 
+## Advogados parceiros (modelo de negócio)
+
+Casos **graves** e composições **expiradas sem acordo** geram encaminhamento para o
+diretório público `/advogados` (filtrável por UF; o bot tenta inferir a UF pelo
+`location` do perfil — texto livre, best-effort). Advogados/escritórios se cadastram
+em `/registro` (nome, OAB, UF, cidade, áreas, contato), entram como **pendentes** e
+só aparecem após aprovação do admin em `/admin`. Configuração no `.env`:
+`WEB_SECRET` (sessões), `ADMIN_EMAIL`/`ADMIN_PASSWORD` (admin criado no primeiro
+start do site). Rotas: `/registro`, `/login`, `/painel` (parceiro edita o perfil),
+`/admin` (aprovar/desativar).
+
 ## Deploy em produção (Windows Server)
 
 Guia completo em [`deploy/windows/DEPLOY_WINDOWS.md`](deploy/windows/DEPLOY_WINDOWS.md):

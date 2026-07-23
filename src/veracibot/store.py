@@ -176,7 +176,8 @@ class Store:
     def get_case(self, conversation_id: str) -> dict | None:
         row = self.conn.execute(
             "SELECT conversation_id, mention_tweet_id, mention_author, status, "
-            "verdict_json FROM cases WHERE conversation_id = ?", (conversation_id,)
+            "verdict_json, reply_tweet_id FROM cases WHERE conversation_id = ?",
+            (conversation_id,)
         ).fetchone()
         if not row:
             return None
@@ -186,6 +187,7 @@ class Store:
             "mention_author": row[2],
             "status": row[3],
             "verdict": json.loads(row[4]) if row[4] else {},
+            "reply_tweet_id": row[5],
         }
 
     def case_exists(self, conversation_id: str) -> bool:
@@ -251,6 +253,13 @@ class Store:
         cols = [d[0] for d in self.conn.execute(
             "SELECT * FROM compositions LIMIT 0").description]
         return dict(zip(cols, row))
+
+    def expired_pending_compositions(self, now_iso: str) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT conversation_id FROM compositions "
+            "WHERE status = 'pendente' AND deadline < ?", (now_iso,)
+        ).fetchall()
+        return [self.get_pending_composition(r[0]) for r in rows]
 
     def resolve_composition(self, conversation_id: str, status: str) -> None:
         self.conn.execute(

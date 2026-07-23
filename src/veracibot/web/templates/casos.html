@@ -7,14 +7,16 @@
   {% for c in cases %}
   <article class="case">
     <div class="case-head">
-      {% if not c.julgavel %}
+      {% if c.status == 'aguardando_provas' %}
+        <span class="badge evidence">{{ t.case_evidence }}</span>
+      {% elif not c.julgavel %}
         <span class="badge declined">{{ t.case_declined }}</span>
       {% elif c.tipo == 'fact_check' %}
         <span class="badge fact">{{ t.case_fact }}</span>
       {% else %}
         <span class="badge dispute">{{ t.case_dispute }}</span>
       {% endif %}
-      <span class="date">{{ c.date }}</span>
+      <span class="date"><a href="{{ p.case_base }}/{{ c.id }}">{{ t.case_label }} #{{ c.id[-6:] }}</a> · {{ c.date }}</span>
     </div>
 
     {% if c.julgavel and c.tipo == 'fact_check' %}
@@ -44,7 +46,8 @@
     </p>
     {% endif %}
 
-    <a class="xlink" href="{{ c.url }}">{{ t.view_on_x }} →</a>
+    <a class="xlink" href="{{ p.case_base }}/{{ c.id }}">{{ t.case_label }} #{{ c.id[-6:] }} →</a>
+    &nbsp; <a class="xlink" href="{{ c.url }}">{{ t.view_on_x }} →</a>
   </article>
   {% endfor %}
 </div>

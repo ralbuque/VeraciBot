@@ -136,6 +136,17 @@ class XClient:
         thread = sorted(tweets.values(), key=lambda t: int(t["id"]))
         return thread[:max_tweets]
 
+    def get_user_location(self, username: str) -> str | None:
+        """Campo `location` (texto livre) do perfil de um usuário, se houver."""
+        try:
+            resp = self.client.get_users(usernames=[username],
+                                         user_fields=["location"])
+            if resp.data:
+                return resp.data[0].location
+        except Exception:
+            log.warning("Falha ao buscar location de @%s", username, exc_info=True)
+        return None
+
     def post_poll(self, text: str, options: list[str], minutes: int,
                   in_reply_to_tweet_id: str) -> str | None:
         """Posta uma enquete como reply. Retorna o id do tweet ou None se proibido."""

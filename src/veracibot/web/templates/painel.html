@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Painel do parceiro</h1>
+<p class="sub">{{ user.email }} · <a href="/logout">sair</a></p>
+{% if msg %}<p class="empty">{{ msg }}</p>{% endif %}
+{% if firm %}
+<p>Status do cadastro:
+  {% if firm.status == 'aprovado' %}<strong style="color:var(--green)">aprovado ✓</strong>
+  {% elif firm.status == 'pendente' %}<strong style="color:var(--gold-soft)">aguardando aprovação</strong>
+  {% else %}<strong style="color:var(--red)">inativo</strong>{% endif %}
+</p>
+<form method="post" class="authform">
+  <label>Nome <input name="name" value="{{ firm.name }}" required></label>
+  <label>OAB <input name="oab" value="{{ firm.oab or '' }}"></label>
+  <label>UF
+    <select name="uf">
+      {% for sigla in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+      <option value="{{ sigla }}" {{ 'selected' if firm.uf == sigla }}>{{ sigla }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Cidade <input name="cidade" value="{{ firm.cidade or '' }}"></label>
+  <label>Áreas <input name="areas" value="{{ firm.areas or '' }}"></label>
+  <label>Contato <input name="contato" value="{{ firm.contato or '' }}"></label>
+  <button type="submit">Salvar</button>
+</form>
+{% else %}
+<p class="empty">Nenhum escritório vinculado a esta conta.</p>
+{% endif %}
+{% endblock %}
