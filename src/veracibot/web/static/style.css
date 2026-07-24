@@ -1,51 +1,103 @@
-/* VeraciBot — identidade tribunal sobre Bootstrap 5 (dark) */
-[data-bs-theme=dark] {
-  --bs-body-bg: #0d0d11;
-  --bs-body-color: #e8e4da;
-  --bs-border-color: #2a2a36;
-  --bs-secondary-color: #9a958a;
-  --bs-link-color: #e3c766;
-  --bs-link-hover-color: #f0d98a;
-  --vb-gold: #c9a227;
-  --vb-gold-soft: #e3c766;
-  --vb-panel: #16161d;
+/* VeraciBot — identidade V-balão: creme, navy, teal e âmbar */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+:root {
+  --vb-teal: #2a7086;
+  --vb-teal-dark: #235e70;
+  --vb-navy: #22304f;
+  --vb-navy-deep: #1a2540;
+  --vb-cream: #f7f1e5;
+  --vb-card: #fffdf8;
+  --vb-line: #e5dcc9;
+  --vb-gold: #d9a441;
+  --vb-green: #3d8f5f;
+  --vb-red: #c0564d;
+  --bs-body-bg: var(--vb-cream);
+  --bs-body-color: var(--vb-navy);
+  --bs-border-color: var(--vb-line);
+  --bs-link-color: var(--vb-teal);
+  --bs-link-hover-color: var(--vb-teal-dark);
 }
 
-body { font-family: Georgia, 'Times New Roman', serif; }
+body { background: var(--vb-cream); color: var(--vb-navy); font-family: 'Nunito', system-ui, sans-serif; }
 
-h1, h2, h3, h4, .navbar-brand { font-weight: normal; }
-h1 { color: var(--vb-gold); letter-spacing: 1px; }
-h2, h3 { color: var(--vb-gold-soft); }
-.text-gold { color: var(--vb-gold) !important; }
+h1, h2, h3, h4 { color: var(--vb-navy); font-weight: 800; }
+.text-gold { color: var(--vb-teal) !important; }
+.text-secondary { color: #6d7891 !important; }
 
-.vb-nav { background-color: var(--vb-panel); }
-.vb-nav .nav-link { color: var(--bs-secondary-color); }
-.vb-nav .nav-link:hover { color: var(--vb-gold-soft); }
+/* navbar e footer em navy (céu do banner) */
+.vb-nav { background: var(--vb-navy-deep); }
+.vb-nav .navbar-brand { color: #fff; font-weight: 800; display: flex; align-items: center; gap: .5rem; }
+.vb-nav .nav-link { color: #cfd8ea; font-weight: 600; }
+.vb-nav .nav-link:hover { color: #fff; }
+.brand-dot { color: var(--vb-gold); }
 
-.card { background-color: var(--vb-panel); border-color: var(--bs-border-color); }
-.card.border-gold { border-color: var(--vb-gold); }
-.list-group-item { background-color: var(--vb-panel); }
+footer { background: var(--vb-navy-deep); }
+footer, footer .text-secondary { color: #cfd8ea !important; }
+footer a { color: #ffffff; }
 
+/* hero em gradiente de amanhecer */
+.hero-band {
+  background: linear-gradient(165deg, var(--vb-navy-deep) 0%, var(--vb-navy) 35%,
+              var(--vb-teal-dark) 75%, var(--vb-teal) 100%);
+  border-radius: 1.25rem;
+}
+.hero-band h1 { color: #fff; font-weight: 800; }
+.hero-band .lead { color: #dbe4f2; }
+.hero-mascote {
+  max-height: 300px;
+  border-radius: 50%;
+  border: 6px solid rgba(255, 255, 255, .85);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+}
+
+/* cartões */
+.card {
+  background: var(--vb-card);
+  border-color: var(--vb-line);
+  border-radius: 1rem;
+  box-shadow: 0 1px 4px rgba(34, 48, 79, .07);
+}
+.card.border-gold { border: 2px solid var(--vb-teal); }
+.list-group-item { background: var(--vb-card); color: var(--vb-navy); }
+
+/* botões */
 .btn-outline-gold {
-  --bs-btn-color: var(--vb-gold-soft);
-  --bs-btn-border-color: var(--vb-gold);
-  --bs-btn-hover-bg: var(--vb-gold);
-  --bs-btn-hover-color: #0d0d11;
-  --bs-btn-hover-border-color: var(--vb-gold);
+  --bs-btn-color: var(--vb-teal);
+  --bs-btn-border-color: var(--vb-teal);
+  --bs-btn-hover-bg: var(--vb-teal);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-border-color: var(--vb-teal);
+  font-weight: 700;
+}
+.hero-band .btn-outline-gold {
+  --bs-btn-color: #fff;
+  --bs-btn-border-color: #fff;
+  --bs-btn-hover-bg: #fff;
+  --bs-btn-hover-color: var(--vb-navy);
+  --bs-btn-hover-border-color: #fff;
 }
 
-.table { --bs-table-bg: transparent; }
-.table thead th { color: var(--vb-gold-soft); font-weight: normal; }
+/* tabelas */
+.table { --bs-table-bg: transparent; --bs-table-color: var(--vb-navy); }
+.table thead th { color: var(--vb-teal); font-weight: 700; }
 
 /* badges dos casos */
-.badge { font-family: var(--bs-font-sans-serif); font-weight: normal; }
-.badge.fact { background: transparent; border: 1px solid #3d5a80; color: #98c1d9; }
-.badge.dispute { background: transparent; border: 1px solid #8f7a1e; color: var(--vb-gold-soft); }
-.badge.declined { background: transparent; border: 1px solid #5a3d3d; color: #d9776f; }
-.badge.evidence { background: transparent; border: 1px solid #7a6a2a; color: #e0c96a; }
+.badge { font-weight: 700; }
+.badge.fact { background: #e3eef2; border: 1px solid var(--vb-teal); color: var(--vb-teal-dark); }
+.badge.dispute { background: #f7ecd7; border: 1px solid var(--vb-gold); color: #8a6415; }
+.badge.declined { background: #f6e3e1; border: 1px solid var(--vb-red); color: var(--vb-red); }
+.badge.evidence { background: #f3ecdc; border: 1px solid #b99334; color: #8a6415; }
 
 /* placar */
-.pos { color: #7dc98f; }
-.neg { color: #d9776f; }
+.pos { color: var(--vb-green); font-weight: 700; }
+.neg { color: var(--vb-red); font-weight: 700; }
 
-.claim { color: var(--bs-secondary-color); font-style: italic; }
+.claim { color: #6d7891; font-style: italic; }
+
+/* formulários */
+.form-control, .form-select { background: #fff; border-color: var(--vb-line); color: var(--vb-navy); }
+.form-control:focus, .form-select:focus {
+  border-color: var(--vb-teal);
+  box-shadow: 0 0 0 .25rem rgba(42, 112, 134, .15);
+}

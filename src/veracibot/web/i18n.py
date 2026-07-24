@@ -9,13 +9,16 @@ T = {
         "hero_sub": "Duas pessoas discutindo no X? Mencione @veracibot na thread e um juiz de IA "
                     "analisa os argumentos, verifica os fatos e declara quem tem razão — em público.",
         "hero_cta": "Mencione @veracibot numa thread para abrir um caso",
-        "why_title": "Por que existimos: microcausas",
+        "why_title": "O que são microcausas?",
         "why_p1": "Ninguém aciona um tribunal por um prato quebrado, uma aposta de R$ 50 "
                   "ou uma promessa desfeita por e-mail. O custo, o tempo e a burocracia "
-                  "da justiça tornam essas causas minúsculas — as microcausas, ou "
-                  "nanocausas — órfãs de julgamento: ficam sem juiz, sem veredito e sem "
-                  "reparação.",
-        "why_p2": "O VeraciBot é o primeiro tribunal de microcausas: um juiz de IA que "
+                  "da justiça tornam essas causas minúsculas — as microcausas — órfãs "
+                  "de julgamento: ficam sem juiz, sem veredito e sem reparação.",
+        "why_p2": "O mesmo vale para a verdade: acionar um tribunal porque alguém contou "
+                  "uma mentira seria um excesso — mas deixá-la circular sem resposta "
+                  "também tem custo. A verificação de fatos é a microcausa por "
+                  "excelência, e aqui ela ganha juiz, evidências e veredito.",
+        "why_p3": "O VeraciBot é o primeiro tribunal de microcausas: um juiz de IA que "
                   "resolve em minutos, em público e de graça, as pendências que nenhum "
                   "tribunal real pegaria. Não competimos com o sistema judiciário — "
                   "cuidamos justamente do que fica fora do alcance dele. Casos sérios "
@@ -115,12 +118,16 @@ T = {
         "hero_sub": "Two people arguing on X? Mention @veracibot in the thread and an AI judge "
                     "reviews the arguments, checks the facts, and rules who is right — in public.",
         "hero_cta": "Mention @veracibot in a thread to open a case",
-        "why_title": "Why we exist: microclaims",
+        "why_title": "What are microclaims?",
         "why_p1": "Nobody takes a broken plate, a $20 bet, or a broken email promise to "
                   "court. The cost, time, and bureaucracy of real justice leave these "
-                  "tiny disputes — microclaims, or nanoclaims — orphaned: no judge, no "
-                  "verdict, no remedy.",
-        "why_p2": "VeraciBot is the first microclaims tribunal: an AI judge that settles "
+                  "tiny disputes — microclaims — orphaned: no judge, no verdict, no "
+                  "remedy.",
+        "why_p2": "The same goes for the truth: suing someone over a lie would be "
+                  "overkill — but letting it spread unanswered has a cost too. "
+                  "Fact-checking is the quintessential microclaim, and here it gets a "
+                  "judge, evidence, and a verdict.",
+        "why_p3": "VeraciBot is the first microclaims tribunal: an AI judge that settles "
                   "in minutes, in public, and for free the disputes no real court would "
                   "take. We don't compete with the judiciary — we handle precisely what "
                   "falls outside its reach. Serious cases are always referred to real "

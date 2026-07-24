@@ -1,10 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="text-center py-5">
-  <div class="display-3">⚖️</div>
-  <h1 class="display-5 mt-2">{{ t.hero_title }}</h1>
-  <p class="lead text-secondary mx-auto mt-3" style="max-width: 640px">{{ t.hero_sub }}</p>
-  <a class="btn btn-outline-gold btn-lg mt-4" href="https://x.com/veracibot">{{ t.hero_cta }}</a>
+<section class="hero-band p-5 mb-5">
+  <div class="row align-items-center g-4">
+    <div class="col-md-7 text-center text-md-start">
+      <img src="/static/logo.svg" alt="veraci.bot" height="64">
+      <h1 class="display-5 mt-3">{{ t.hero_title }}</h1>
+      <p class="lead mt-3">{{ t.hero_sub }}</p>
+      <a class="btn btn-outline-gold btn-lg mt-3" href="https://x.com/veracibot">{{ t.hero_cta }}</a>
+    </div>
+    <div class="col-md-5 text-center">
+      <img src="/static/mascote.png" alt="Mascote do VeraciBot" class="hero-mascote img-fluid">
+    </div>
+  </div>
 </section>
 
 <section class="row g-3 justify-content-center text-center mb-5">
@@ -23,7 +30,8 @@
   <div class="card border-gold p-4">
     <h2 class="h4">{{ t.why_title }}</h2>
     <p>{{ t.why_p1 }}</p>
-    <p class="text-secondary mb-0">{{ t.why_p2 }}</p>
+    <p>{{ t.why_p2 }}</p>
+    <p class="text-secondary mb-0">{{ t.why_p3 }}</p>
   </div>
 </section>
 
