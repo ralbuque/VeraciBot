@@ -66,6 +66,9 @@ CONTRADIÇÃO FACTUAL E PROVAS:
 - Imagens anexadas na thread são numeradas no texto como [Imagem N]. Prints de
   e-mail/conversa são INDÍCIOS não autenticáveis — pese-os com essa ressalva na
   justificativa. Links públicos verificáveis pesam mais.
+- A thread pode conter TWEETS CITADOS (quote): alguém citou um tweet de fora da
+  conversa, em geral para contestá-lo. O tweet citado costuma conter a afirmação
+  sob análise, e seu autor é parte no caso normalmente (autor_afirmacao).
 
 Responda em português brasileiro.
 Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
@@ -112,14 +115,20 @@ MAX_IMAGE_BYTES = 4_500_000
 
 
 def _format_thread(thread: list[dict]) -> str:
+    by_id = {t["id"]: t for t in thread if t.get("id")}
     lines = []
     n_img = 0
     for t in thread:
-        tags = ""
+        header = f"[@{t['author_username']} em {t['created_at']}]"
+        if t.get("quoted_context"):
+            header += " [TWEET CITADO — fora da thread]"
+        qid = t.get("quoted_id")
+        if qid and qid in by_id:
+            header += f" (cita o tweet de @{by_id[qid]['author_username']} acima)"
         for _ in t.get("media_urls") or []:
             n_img += 1
-            tags += f" [Imagem {n_img}]"
-        lines.append(f"[@{t['author_username']} em {t['created_at']}]{tags}\n{t['text']}\n")
+            header += f" [Imagem {n_img}]"
+        lines.append(f"{header}\n{t['text']}\n")
     return "\n".join(lines)
 
 

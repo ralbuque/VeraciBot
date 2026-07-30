@@ -32,7 +32,13 @@ def _tweet_to_dict(tweet, users: dict, media: dict | None = None) -> dict:
             m = media.get(key)
             if m is not None and m.type == "photo" and m.url:
                 media_urls.append(m.url)
+    quoted_id = None
+    if tweet.referenced_tweets:
+        for ref in tweet.referenced_tweets:
+            if ref.type == "quoted":
+                quoted_id = str(ref.id)
     return {
+        "quoted_id": quoted_id,
         "id": str(tweet.id),
         "conversation_id": str(tweet.conversation_id),
         "author_id": str(tweet.author_id),
@@ -132,6 +138,26 @@ class XClient:
                 tweets[str(t.id)] = _tweet_to_dict(t, users, media)
             if len(tweets) >= max_tweets:
                 break
+
+        # Segue quotes: tweets citados por alguém da thread (a afirmação contestada
+        # costuma estar neles) — 1 nível de profundidade.
+        quoted_ids = {t["quoted_id"] for t in tweets.values() if t.get("quoted_id")}
+        quoted_ids -= set(tweets.keys())
+        if quoted_ids:
+            resp = self.client.get_tweets(
+                ids=list(quoted_ids)[:20],
+                tweet_fields=TWEET_FIELDS,
+                expansions=EXPANSIONS,
+                user_fields=USER_FIELDS,
+                media_fields=MEDIA_FIELDS,
+            )
+            if resp.data:
+                users = _index_users(resp.includes)
+                media = _index_media(resp.includes)
+                for t in resp.data:
+                    d = _tweet_to_dict(t, users, media)
+                    d["quoted_context"] = True
+                    tweets[str(t.id)] = d
 
         thread = sorted(tweets.values(), key=lambda t: int(t["id"]))
         return thread[:max_tweets]
