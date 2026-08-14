@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from .config import load_config
 from .geo import extract_uf
 from .invites import (INVITER_BALANCE, INVITES_PER_MEMBER, NO_INVITES_LEFT,
-                      NOT_INVITED, WELCOME, parse_invites)
+                      NOT_INVITED, NOT_INVITED_PROMO, WELCOME, parse_invites)
 from .judge import Judge
 from .reply import JUSTICE_LINE, composition_line, evidence_request, format_reply
 from .scoring import CALL_COST, apply_scores, resolve_user_id
@@ -84,7 +84,8 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
             store.mark_rejection_notified(requester)
             log.info("@%s não é membro; avisando (uma vez).", requester)
             if cfg.post_replies:
-                x.post_reply(NOT_INVITED.format(handle=requester),
+                template = NOT_INVITED_PROMO if cfg.promo_enabled else NOT_INVITED
+                x.post_reply(template.format(handle=requester),
                              in_reply_to_tweet_id=mention["id"])
         else:
             log.info("@%s não é membro; ignorando em silêncio.", requester)
@@ -541,7 +542,8 @@ def handle_member_invites(mention, invited, x, store, cfg) -> None:
         if cfg.invite_only and not store.was_rejection_notified(inviter):
             store.mark_rejection_notified(inviter)
             if cfg.post_replies:
-                x.post_reply(NOT_INVITED.format(handle=inviter),
+                template = NOT_INVITED_PROMO if cfg.promo_enabled else NOT_INVITED
+                x.post_reply(template.format(handle=inviter),
                              in_reply_to_tweet_id=mention["id"])
         return
 

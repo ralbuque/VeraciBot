@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 import anthropic
 
@@ -71,6 +72,8 @@ CONTRADIÇÃO FACTUAL E PROVAS:
   sob análise, e seu autor é parte no caso normalmente (autor_afirmacao).
 
 Responda em português brasileiro.
+NUNCA use tags de citação como <cite> no texto — mencione as fontes em linguagem
+natural na justificativa (ex.: "segundo o Metrópoles, ...").
 Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
 {{
   "tipo_caso": "disputa" ou "fact_check",
@@ -164,13 +167,29 @@ def _download_images(thread: list[dict]) -> list[dict]:
     return blocks
 
 
+# Tags de citação da busca na web (ex.: <cite index="1-1">...</cite>), nas formas
+# crua e com aspas escapadas dentro de strings JSON.
+_CITE_RE = re.compile(r"</?cite[^>]*?>|<cite\s+index=\\\"[^>]*?\\\">|</cite>")
+
+
+def _strip_cites(obj):
+    if isinstance(obj, str):
+        return _CITE_RE.sub("", obj)
+    if isinstance(obj, list):
+        return [_strip_cites(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _strip_cites(v) for k, v in obj.items()}
+    return obj
+
+
 def _extract_json(message) -> dict:
     """Concatena os blocos de texto (pode haver vários com web search) e extrai o JSON."""
     raw = "".join(b.text for b in message.content if b.type == "text").strip()
+    raw = _CITE_RE.sub("", raw)  # antes do parse: as aspas das tags quebram o JSON
     start, end = raw.find("{"), raw.rfind("}")
     if start == -1 or end == -1:
         raise ValueError(f"Resposta do juiz sem JSON: {raw[:200]}")
-    return json.loads(raw[start : end + 1])
+    return _strip_cites(json.loads(raw[start : end + 1]))
 
 
 class Judge:

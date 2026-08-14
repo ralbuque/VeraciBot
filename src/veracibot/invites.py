@@ -26,6 +26,12 @@ NOT_INVITED = (
     "convidado. Procure alguém que participe do sistema e peça para te convidar. "
     "Saiba mais: veraci.bot"
 )
+NOT_INVITED_PROMO = (
+    "Lamento, @{handle}, mas o VeraciBot só pode ser chamado por quem foi "
+    "convidado. Peça um convite a um participante — ou entre pela promoção "
+    "Em Busca da Verdade: poste \"quero participar\" me mencionando (precisa do "
+    "selo azul e me seguir). Saiba mais: veraci.bot"
+)
 NO_INVITES_LEFT = (
     "@{handle}, seus {n} convites já foram usados — não foi possível convidar {failed}."
 )
