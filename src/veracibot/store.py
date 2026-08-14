@@ -60,6 +60,11 @@ CREATE TABLE IF NOT EXISTS appeals (
     created_at TEXT NOT NULL,
     resolved_at TEXT
 );
+CREATE TABLE IF NOT EXISTS promo_participants (
+    user_id TEXT PRIMARY KEY,
+    username TEXT,
+    joined_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS appeal_votes (
     conversation_id TEXT NOT NULL,
     voter_id TEXT NOT NULL,
@@ -267,6 +272,26 @@ class Store:
             (status, datetime.now(timezone.utc).isoformat(), conversation_id),
         )
         self.conn.commit()
+
+    # --- promoção ---
+    def add_participant(self, user_id: str, username: str) -> None:
+        self.conn.execute(
+            "INSERT OR IGNORE INTO promo_participants (user_id, username, joined_at) "
+            "VALUES (?, ?, ?)",
+            (user_id, username, datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def is_participant(self, user_id: str) -> bool:
+        return self.conn.execute(
+            "SELECT 1 FROM promo_participants WHERE user_id = ?", (user_id,)
+        ).fetchone() is not None
+
+    def participants(self) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT user_id, username FROM promo_participants"
+        ).fetchall()
+        return [{"user_id": r[0], "username": r[1]} for r in rows]
 
     # --- recursos (apelação) ---
     def create_appeal(self, conversation_id: str, appellant_id: str,

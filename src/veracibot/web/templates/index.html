@@ -1,5 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
+{% if promo %}
+<section class="hero-band p-5 mb-4">
+  <div class="row align-items-center g-4">
+    <div class="col-md-7 text-center text-md-start">
+      <h1 class="display-5">{{ t.promo_title }}</h1>
+      <p class="lead mt-3">{{ t.promo_sub }}</p>
+      <a class="btn btn-outline-gold btn-lg mt-3"
+         href="https://x.com/intent/post?text=@veracibot%20quero%20participar">{{ t.promo_cta }}</a>
+    </div>
+    <div class="col-md-5 text-center">
+      <img src="/static/mascote.png" alt="Mascote do VeraciBot" class="hero-mascote img-fluid">
+    </div>
+  </div>
+</section>
+
+<section class="row g-3 mb-5">
+  <div class="col-md-4">
+    <div class="card h-100 p-4">
+      <h2 class="h5 text-gold">{{ t.promo_how_title }}</h2>
+      <ol class="mb-0 ps-3">
+        {% for s in t.promo_steps %}<li class="mb-2">{{ s }}</li>{% endfor %}
+      </ol>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 p-4">
+      <h2 class="h5 text-gold">{{ t.promo_rules_title }}</h2>
+      <ol class="mb-0 ps-3">
+        {% for s in t.promo_rules %}<li class="mb-2">{{ s }}</li>{% endfor %}
+      </ol>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 p-4 border-gold">
+      <h2 class="h5 text-gold">{{ t.promo_prizes_title }}</h2>
+      <table class="table table-sm mb-2">
+        {% for pos, prize in t.promo_prizes %}
+        <tr><td>{{ pos }}</td><td class="text-end">{{ prize }}</td></tr>
+        {% endfor %}
+      </table>
+      <p class="text-secondary small mb-0">{{ t.promo_note }}</p>
+    </div>
+  </div>
+</section>
+{% else %}
 <section class="hero-band p-5 mb-5">
   <div class="row align-items-center g-4">
     <div class="col-md-7 text-center text-md-start">
@@ -13,6 +58,7 @@
     </div>
   </div>
 </section>
+{% endif %}
 
 <section class="row g-3 justify-content-center text-center mb-5">
   {% for value, label in [(stats.cases, t.stats_cases), (stats.fact, t.stats_fact),
@@ -35,6 +81,7 @@
   </div>
 </section>
 
+{% if not promo %}
 <section class="mb-5">
   <h2 class="h3 mb-3">{{ t.how_title }}</h2>
   <div class="row g-3 row-cols-1 row-cols-md-3">
@@ -71,4 +118,19 @@
     </table>
   </div>
 </section>
+{% else %}
+<section class="mb-5">
+  <h2 class="h3 mb-2">{{ t.scoring_title }}</h2>
+  <p class="text-secondary">{{ t.scoring_intro }}</p>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <tbody>
+        {% for situacao, efeito in t.scoring_rows[:4] %}
+        <tr><td>{{ situacao }}</td><td class="text-secondary">{{ efeito }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

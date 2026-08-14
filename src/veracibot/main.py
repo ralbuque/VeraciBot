@@ -20,6 +20,20 @@ EVIDENCE_HOURS = 48
 APPEAL_COST = 5
 APPEAL_HOURS = 24
 
+# --- Promoção "Em Busca da Verdade" ---
+ENROLL_RE = re.compile(r"quero\s+participar", re.IGNORECASE)
+PROMO_PRIZES = [3000, 1000, 500, 250, 250]  # μBTC: 1º ao 5º
+PROMO_WELCOME = (
+    "🔍 Inscrição confirmada, @{handle}! Você está na promoção Em Busca da Verdade. "
+    "Em {start} os pontos dos participantes são zerados em 1000; quem tiver mais "
+    "pontos em {end} leva até 3.000 μBTC (5.000 μBTC em prêmios). Aponte fake news "
+    "com @veracibot e boa caçada! Regras: {site}"
+)
+PROMO_MISSING = (
+    "🔍 @{handle}, para participar da promoção falta: {missing}. "
+    "Depois é só repetir \"@veracibot quero participar\". Regras: {site}"
+)
+
 VOTE_RE = re.compile(r"voto\s+@(\w{1,15})", re.IGNORECASE)
 
 APPEAL_TEXT = (
@@ -41,6 +55,11 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
     conv_id = mention["conversation_id"]
     requester = mention["author_username"] or "desconhecido"
     requester_id = mention["author_id"]
+
+    # Inscrição na promoção ("@veracibot quero participar")?
+    if cfg.promo_enabled and ENROLL_RE.search(mention["text"]):
+        handle_enrollment(mention, x, store, cfg)
+        return
 
     # Convite via menção de um membro ("@veracibot convido @fulano")?
     invited = parse_invites(mention["text"], exclude={cfg.bot_handle.lower(),
@@ -300,6 +319,95 @@ def handle_vote(mention: dict, appeal: dict, store: Store, cfg) -> None:
     log.info("Voto registrado em %s: @%s → @%s.", conv_id, voter, choice)
 
 
+def handle_enrollment(mention: dict, x: XClient, store: Store, cfg) -> None:
+    """Inscrição na promoção: exige selo azul (Premium) e seguir o bot."""
+    uid = mention["author_id"]
+    handle = mention["author_username"] or "?"
+    if store.is_participant(uid):
+        log.info("@%s já é participante da promoção; ignorando.", handle)
+        return
+
+    info = x.get_user_info(uid)
+    missing = []
+    if not info.get("verified"):
+        missing.append("ter o selo azul (X Premium)")
+    if not x.is_follower(uid):
+        missing.append("seguir @" + cfg.bot_handle)
+    if missing:
+        log.info("Inscrição de @%s incompleta: %s", handle, missing)
+        if cfg.post_replies:
+            x.post_reply(
+                PROMO_MISSING.format(handle=handle, missing=" e ".join(missing),
+                                     site=cfg.site_url),
+                in_reply_to_tweet_id=mention["id"],
+            )
+        return
+
+    store.add_participant(uid, handle)
+    if not store.is_member(handle):
+        store.add_member(handle, invited_by="promo")
+    # Se o reset já aconteceu, o recém-inscrito também parte de 1000.
+    if store.get_state("promo_reset_done"):
+        balance = store.get_balance(uid, handle)
+        if balance != 1000:
+            store.adjust_score(uid, handle, 1000 - balance, "promo_reset")
+    log.info("Promoção: @%s inscrito.", handle)
+    if cfg.post_replies:
+        start = datetime.fromisoformat(cfg.promo_start).strftime("%d/%m")
+        end = datetime.fromisoformat(cfg.promo_end)
+        end_display = (end - timedelta(days=1)).strftime("%d/%m às 24h")
+        x.post_reply(
+            PROMO_WELCOME.format(handle=handle, start=start, end=end_display,
+                                 site=cfg.site_url),
+            in_reply_to_tweet_id=mention["id"],
+        )
+
+
+def promo_tick(x: XClient, store: Store, cfg) -> None:
+    """Reset dos pontos no início e anúncio dos vencedores no fim da promoção."""
+    if not cfg.promo_enabled:
+        return
+    now = datetime.now(timezone.utc)
+    start = datetime.fromisoformat(cfg.promo_start)
+    end = datetime.fromisoformat(cfg.promo_end)
+
+    if now >= start and not store.get_state("promo_reset_done"):
+        for p in store.participants():
+            balance = store.get_balance(p["user_id"], p["username"])
+            if balance != 1000:
+                store.adjust_score(p["user_id"], p["username"], 1000 - balance,
+                                   "promo_reset")
+        store.set_state("promo_reset_done", "1")
+        log.info("Promoção: pontos de %d participante(s) zerados em 1000.",
+                 len(store.participants()))
+        if cfg.post_replies:
+            x.post_tweet(
+                "🔍 Começou a caçada! Promoção Em Busca da Verdade: todos os "
+                "participantes partem de 1000 pontos. Quem apontar mais fake news "
+                f"até {(end - timedelta(days=1)).strftime('%d/%m')} às 24h leva até "
+                f"3.000 μBTC. Regras: {cfg.site_url}"
+            )
+
+    if now >= end and not store.get_state("promo_winners_announced"):
+        ranking = sorted(
+            ((p, store.get_balance(p["user_id"], p["username"]))
+             for p in store.participants()),
+            key=lambda t: -t[1],
+        )[:5]
+        lines = ["🏆 Resultado da promoção Em Busca da Verdade:"]
+        medals = ["🥇", "🥈", "🥉", "4º", "5º"]
+        for i, (p, balance) in enumerate(ranking):
+            lines.append(f"{medals[i]} @{p['username']} — {balance} pts — "
+                         f"{PROMO_PRIZES[i]:,} μBTC".replace(",", "."))
+        lines.append("Obrigado a todos que caçaram fake news com o tribunal! "
+                     f"{cfg.site_url}")
+        store.set_state("promo_winners_announced", "1")
+        log.info("Promoção encerrada; vencedores: %s",
+                 [p["username"] for p, _ in ranking])
+        if cfg.post_replies:
+            x.post_tweet("\n".join(lines))
+
+
 def check_expired_compositions(x: XClient, store: Store, cfg) -> None:
     """Composições com prazo vencido: encerra e indica advogados parceiros."""
     now = datetime.now(timezone.utc).isoformat()
@@ -487,6 +595,7 @@ def run() -> None:
             poll_owner_invites(x, store, cfg)
             check_appeals(x, store, cfg)
             check_expired_compositions(x, store, cfg)
+            promo_tick(x, store, cfg)
         except Exception:
             log.exception("Erro no ciclo de polling")
         time.sleep(cfg.poll_interval_seconds)

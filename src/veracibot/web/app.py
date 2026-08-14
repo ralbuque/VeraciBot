@@ -43,6 +43,8 @@ PATHS = {
 
 FIRM_FIELDS = ("name", "oab", "uf", "cidade", "areas", "contato")
 
+PROMO = os.environ.get("PROMO_ENABLED", "false").lower() == "true"
+
 
 def _current_user(request: Request) -> dict | None:
     uid = request.session.get("uid")
@@ -121,7 +123,10 @@ def _cases(limit: int = 50) -> list[dict]:
     dmap: dict[str, list] = {}
     for r in deltas:
         dmap.setdefault(r["conversation_id"], []).append((r["username"], r["d"]))
-    return [_case_dict(r, dmap.get(r["conversation_id"], [])) for r in rows]
+    cases = [_case_dict(r, dmap.get(r["conversation_id"], [])) for r in rows]
+    if PROMO:  # modo promoção: o site exibe só checagens de fato
+        cases = [c for c in cases if c["tipo"] == "fact_check" or not c["julgavel"]]
+    return cases
 
 
 def _case_detail(conversation_id: str) -> dict | None:
@@ -159,6 +164,7 @@ def _render(request: Request, template: str, lang: str, alt: str, **ctx):
             "lang": lang,
             "p": PATHS[lang],
             "alt": alt,
+            "promo": PROMO,
             **ctx,
         },
     )

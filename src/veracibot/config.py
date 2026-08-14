@@ -36,6 +36,9 @@ class Config:
     max_reply_len: int
     appeal_quorum: int
     site_url: str
+    promo_enabled: bool
+    promo_start: str
+    promo_end: str
 
 
 def load_config() -> Config:
@@ -57,4 +60,7 @@ def load_config() -> Config:
         max_reply_len=int(os.environ.get("MAX_REPLY_LEN", "280")),
         appeal_quorum=int(os.environ.get("APPEAL_QUORUM", "5")),
         site_url=os.environ.get("SITE_URL", "https://veraci.bot").rstrip("/"),
+        promo_enabled=os.environ.get("PROMO_ENABLED", "false").lower() == "true",
+        promo_start=os.environ.get("PROMO_START", "2026-08-16T00:00:00-03:00"),
+        promo_end=os.environ.get("PROMO_END", "2026-08-23T00:00:00-03:00"),
     )

@@ -9,6 +9,32 @@ T = {
         "hero_sub": "Duas pessoas discutindo no X? Mencione @veracibot na thread e um juiz de IA "
                     "analisa os argumentos, verifica os fatos e declara quem tem razão — em público.",
         "hero_cta": "Mencione @veracibot numa thread para abrir um caso",
+        "promo_title": "🔍 Em Busca da Verdade",
+        "promo_sub": "Aponte o máximo de fake news em uma semana e ganhe até "
+                     "3.000 microbitcoins (~R$ 1.000). São 5.000 μBTC em prêmios "
+                     "(~R$ 2.500) para os 5 maiores caçadores de mentiras do X.",
+        "promo_how_title": "Como participar",
+        "promo_steps": [
+            "Tenha o selo azul (X Premium) na sua conta.",
+            "Siga @veracibot no X.",
+            "Poste: \"@veracibot quero participar\" — o bot confirma sua inscrição na hora.",
+        ],
+        "promo_rules_title": "Como funciona a disputa",
+        "promo_rules": [
+            "Em 16/08 às 0h, os pontos de todos os participantes são zerados em 1.000.",
+            "Durante a semana, aponte fake news mencionando @veracibot na thread ou no quote da afirmação. Checagem verdadeira ou falsa movimenta pontos conforme as regras do tribunal.",
+            "Em 22/08 às 24h, quem tiver mais pontos vence.",
+        ],
+        "promo_prizes_title": "Premiação (em microbitcoins)",
+        "promo_prizes": [
+            ("🥇 1º lugar", "3.000 μBTC (~R$ 1.000 / US$ 150)"),
+            ("🥈 2º lugar", "1.000 μBTC"),
+            ("🥉 3º lugar", "500 μBTC"),
+            ("4º e 5º lugares", "250 μBTC cada"),
+        ],
+        "promo_cta": "Quero participar",
+        "promo_note": "Total de 5.000 μBTC (~R$ 2.500 / US$ 320) em prêmios. "
+                      "Vencedores anunciados pelo @veracibot ao fim da promoção.",
         "why_title": "O que são microcausas?",
         "why_p1": "Ninguém aciona um tribunal por um prato quebrado, uma aposta de R$ 50 "
                   "ou uma promessa desfeita por e-mail. O custo, o tempo e a burocracia "
@@ -118,6 +144,32 @@ T = {
         "hero_sub": "Two people arguing on X? Mention @veracibot in the thread and an AI judge "
                     "reviews the arguments, checks the facts, and rules who is right — in public.",
         "hero_cta": "Mention @veracibot in a thread to open a case",
+        "promo_title": "🔍 Truth Hunt",
+        "promo_sub": "Call out as much fake news as you can in one week and win up to "
+                     "3,000 microbitcoins (~US$ 150). A total of 5,000 μBTC in prizes "
+                     "(~US$ 320) for X's top 5 lie hunters.",
+        "promo_how_title": "How to join",
+        "promo_steps": [
+            "Have the blue badge (X Premium) on your account.",
+            "Follow @veracibot on X.",
+            "Post: \"@veracibot quero participar\" — the bot confirms your entry instantly.",
+        ],
+        "promo_rules_title": "How the contest works",
+        "promo_rules": [
+            "On Aug 16 at 0:00, every participant's points are reset to 1,000.",
+            "During the week, call out fake news by mentioning @veracibot in the thread or quoting the claim. True or false rulings move points under the tribunal's rules.",
+            "On Aug 22 at 24:00, whoever has the most points wins.",
+        ],
+        "promo_prizes_title": "Prizes (in microbitcoins)",
+        "promo_prizes": [
+            ("🥇 1st place", "3,000 μBTC (~US$ 150)"),
+            ("🥈 2nd place", "1,000 μBTC"),
+            ("🥉 3rd place", "500 μBTC"),
+            ("4th and 5th places", "250 μBTC each"),
+        ],
+        "promo_cta": "I'm in",
+        "promo_note": "5,000 μBTC (~US$ 320) in total prizes. Winners announced by "
+                      "@veracibot when the contest ends.",
         "why_title": "What are microclaims?",
         "why_p1": "Nobody takes a broken plate, a $20 bet, or a broken email promise to "
                   "court. The cost, time, and bureaucracy of real justice leave these "

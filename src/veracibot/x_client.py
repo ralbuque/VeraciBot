@@ -162,6 +162,51 @@ class XClient:
         thread = sorted(tweets.values(), key=lambda t: int(t["id"]))
         return thread[:max_tweets]
 
+    def me_id(self) -> str:
+        """Id da própria conta do bot (cacheado)."""
+        if not hasattr(self, "_me_id"):
+            self._me_id = str(self.client.get_me(user_auth=True).data.id)
+        return self._me_id
+
+    def get_user_info(self, user_id: str) -> dict:
+        """Dados públicos do usuário, incluindo selo de verificação."""
+        try:
+            resp = self.client.get_users(ids=[user_id],
+                                         user_fields=["verified", "verified_type"])
+            if resp.data:
+                u = resp.data[0]
+                return {"username": u.username, "verified": bool(u.verified),
+                        "verified_type": getattr(u, "verified_type", None)}
+        except Exception:
+            log.warning("Falha ao buscar dados de %s", user_id, exc_info=True)
+        return {"username": None, "verified": False, "verified_type": None}
+
+    def is_follower(self, user_id: str, max_pages: int = 5) -> bool:
+        """Verifica se user_id segue o bot (paginando a lista de seguidores)."""
+        try:
+            paginator = tweepy.Paginator(
+                self.client.get_users_followers, id=self.me_id(), max_results=1000
+            )
+            pages = 0
+            for page in paginator:
+                if page.data and any(str(u.id) == user_id for u in page.data):
+                    return True
+                pages += 1
+                if pages >= max_pages:
+                    break
+        except Exception:
+            log.warning("Falha ao verificar seguidor %s", user_id, exc_info=True)
+        return False
+
+    def post_tweet(self, text: str) -> str | None:
+        """Tweet avulso (anúncios da promoção)."""
+        try:
+            resp = self.client.create_tweet(text=text)
+        except tweepy.errors.Forbidden as e:
+            log.warning("Tweet avulso proibido: %s", e)
+            return None
+        return str(resp.data["id"]) if resp.data else None
+
     def get_user_location(self, username: str) -> str | None:
         """Campo `location` (texto livre) do perfil de um usuário, se houver."""
         try:
