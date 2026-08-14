@@ -46,6 +46,15 @@ FIRM_FIELDS = ("name", "oab", "uf", "cidade", "areas", "contato")
 PROMO = os.environ.get("PROMO_ENABLED", "false").lower() == "true"
 
 
+def _promo_started() -> bool:
+    from datetime import datetime, timezone
+    start = os.environ.get("PROMO_START", "2026-08-16T00:00:00-03:00")
+    try:
+        return datetime.now(timezone.utc) >= datetime.fromisoformat(start)
+    except ValueError:
+        return False
+
+
 def _current_user(request: Request) -> dict | None:
     uid = request.session.get("uid")
     return webdb.get_user(uid) if uid else None
@@ -83,6 +92,17 @@ def _stats() -> dict:
 def _leaderboard(limit: int = 100) -> list[dict]:
     rows = _query(
         "SELECT username, balance FROM scores ORDER BY balance DESC, username LIMIT ?",
+        (limit,),
+    )
+    return [dict(r) for r in rows]
+
+
+def _promo_leaderboard(limit: int = 100) -> list[dict]:
+    """Ranking só com inscritos na promoção (sem pontuação ainda = 1000)."""
+    rows = _query(
+        "SELECT p.username AS username, COALESCE(s.balance, 1000) AS balance "
+        "FROM promo_participants p LEFT JOIN scores s ON s.user_id = p.user_id "
+        "ORDER BY balance DESC, username LIMIT ?",
         (limit,),
     )
     return [dict(r) for r in rows]
@@ -182,12 +202,16 @@ def index_en(request: Request):
 
 @app.get("/ranking")
 def ranking_pt(request: Request):
-    return _render(request, "ranking.html", "pt", "/en/ranking", rows=_leaderboard())
+    return _render(request, "ranking.html", "pt", "/en/ranking", rows=_leaderboard(),
+                   promo_rows=_promo_leaderboard() if PROMO else [],
+                   promo_started=_promo_started())
 
 
 @app.get("/en/ranking")
 def ranking_en(request: Request):
-    return _render(request, "ranking.html", "en", "/ranking", rows=_leaderboard())
+    return _render(request, "ranking.html", "en", "/ranking", rows=_leaderboard(),
+                   promo_rows=_promo_leaderboard() if PROMO else [],
+                   promo_started=_promo_started())
 
 
 @app.get("/casos")

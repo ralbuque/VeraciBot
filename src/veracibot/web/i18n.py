@@ -85,6 +85,13 @@ T = {
         "stats_users": "cidadãos no tribunal",
         "ranking_title": "Ranking público",
         "ranking_sub": "Saldo de pontos de cada cidadão do tribunal.",
+        "ranking_tab_promo": "🔍 Promoção",
+        "ranking_tab_all": "Geral",
+        "ranking_promo_sub": "Somente inscritos na promoção Em Busca da Verdade. "
+                             "Os 5 primeiros ao fim de 22/08 levam os prêmios.",
+        "ranking_promo_notstarted": "⏳ A contagem oficial começa em 16/08 às 0h, "
+                                    "quando os pontos de todos os inscritos serão "
+                                    "zerados em 1.000. Inscreva-se desde já!",
         "col_pos": "#",
         "col_user": "Usuário",
         "col_points": "Pontos",
@@ -222,6 +229,13 @@ T = {
         "stats_users": "citizens in the tribunal",
         "ranking_title": "Public leaderboard",
         "ranking_sub": "Point balance of every citizen of the tribunal.",
+        "ranking_tab_promo": "🔍 Contest",
+        "ranking_tab_all": "Overall",
+        "ranking_promo_sub": "Truth Hunt participants only. The top 5 at the end of "
+                             "Aug 22 take the prizes.",
+        "ranking_promo_notstarted": "⏳ The official count starts Aug 16 at 0:00, "
+                                    "when every participant's points reset to 1,000. "
+                                    "Sign up now!",
         "col_pos": "#",
         "col_user": "User",
         "col_points": "Points",
