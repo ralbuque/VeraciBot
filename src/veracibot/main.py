@@ -113,6 +113,17 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         # Nota: thread com 1 tweet é válida — pode ser fact-check de afirmação única.
         verdict = judge.judge(thread, requester)
 
+        # Caso não-julgável (menção fora de contexto, sem disputa/afirmação):
+        # silêncio total — sem reply, custo estornado; salva só para não reprocessar.
+        if not verdict.get("julgavel"):
+            store.adjust_score(requester_id, requester, +CALL_COST,
+                               "estorno_arquivado", conv_id)
+            store.save_case(conv_id, mention["id"], requester, "declined",
+                            verdict=verdict, thread=thread)
+            log.info("Caso %s arquivado em silêncio: %s", conv_id,
+                     verdict.get("motivo_recusa"))
+            return
+
         # Contradição factual decisiva: abre a fase de provas (sem pontuar ainda)
         if (verdict.get("fase") == "pedido_provas" and verdict.get("julgavel")
                 and verdict.get("onus")):
@@ -213,6 +224,16 @@ def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
             return
 
         requester_id = resolve_user_id(thread, requester) or mention["author_id"]
+
+        # Veredito final não-julgável: mesmo tratamento silencioso.
+        if not verdict.get("julgavel"):
+            store.adjust_score(requester_id, requester, +CALL_COST,
+                               "estorno_arquivado", conv_id)
+            store.save_case(conv_id, case["mention_tweet_id"], requester, "declined",
+                            verdict=verdict, thread=thread)
+            log.info("Caso %s (fase de provas) arquivado em silêncio.", conv_id)
+            return
+
         scores = apply_scores(store, verdict, requester_id, requester, thread, conv_id)
         extra = open_composition(verdict, scores, thread, requester_id, requester,
                                  conv_id, store)
