@@ -18,6 +18,8 @@ T = {
             "Tenha o selo azul (X Premium) na sua conta.",
             "Siga @veracibot no X.",
             "Poste: \"@veracibot quero participar\" — o bot confirma sua inscrição na hora.",
+            "Para receber o prêmio, os ganhadores precisam ter uma carteira Bitcoin "
+            "com endereço na mainnet. O pagamento será feito no dia 31 de agosto.",
         ],
         "promo_rules_title": "Como funciona a disputa",
         "promo_rules": [
@@ -153,6 +155,8 @@ T = {
             "Have the blue badge (X Premium) on your account.",
             "Follow @veracibot on X.",
             "Post: \"@veracibot quero participar\" — the bot confirms your entry instantly.",
+            "To receive the prize, winners must have a Bitcoin wallet with a mainnet "
+            "address. Payment will be made on August 31.",
         ],
         "promo_rules_title": "How the contest works",
         "promo_rules": [
