@@ -24,10 +24,9 @@ APPEAL_HOURS = 24
 ENROLL_RE = re.compile(r"quero\s+participar", re.IGNORECASE)
 PROMO_PRIZES = [3000, 1000, 500, 250, 250]  # μBTC: 1º ao 5º
 PROMO_WELCOME = (
-    "🔍 Inscrição confirmada, @{handle}! Você está na promoção Em Busca da Verdade. "
-    "Em {start} os pontos dos participantes são zerados em 1000; quem tiver mais "
-    "pontos em {end} leva até 3.000 μBTC (5.000 μBTC em prêmios). Aponte fake news "
-    "com @veracibot e boa caçada! Regras: {site}"
+    "🔍 Inscrição confirmada, @{handle}! Em {start} os pontos dos participantes "
+    "serão zerados em 1000; quem tiver mais pontos em {end} leva até 3.000 μBTC. "
+    "Aponte fake news com @veracibot e boa caçada! Regras e prêmios: {site}"
 )
 PROMO_MISSING = (
     "🔍 @{handle}, para participar da promoção falta: {missing}. "
