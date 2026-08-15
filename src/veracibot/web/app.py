@@ -97,6 +97,11 @@ def _leaderboard(limit: int = 100) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def _promo_count() -> int:
+    rows = _query("SELECT COUNT(*) AS c FROM promo_participants")
+    return rows[0]["c"] if rows else 0
+
+
 def _promo_leaderboard(limit: int = 100) -> list[dict]:
     """Ranking só com inscritos na promoção (sem pontuação ainda = 1000)."""
     rows = _query(
@@ -192,12 +197,14 @@ def _render(request: Request, template: str, lang: str, alt: str, **ctx):
 
 @app.get("/")
 def index_pt(request: Request):
-    return _render(request, "index.html", "pt", "/en", stats=_stats())
+    return _render(request, "index.html", "pt", "/en", stats=_stats(),
+                   promo_count=_promo_count() if PROMO else 0)
 
 
 @app.get("/en")
 def index_en(request: Request):
-    return _render(request, "index.html", "en", "/", stats=_stats())
+    return _render(request, "index.html", "en", "/", stats=_stats(),
+                   promo_count=_promo_count() if PROMO else 0)
 
 
 @app.get("/ranking")

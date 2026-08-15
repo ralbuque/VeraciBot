@@ -35,6 +35,8 @@ T = {
             ("4º e 5º lugares", "250 μBTC cada"),
         ],
         "promo_cta": "Quero participar",
+        "promo_count_many": "pessoas já estão inscritas — participe você também!",
+        "promo_count_one": "pessoa já está inscrita — participe você também!",
         "promo_note": "Total de 5.000 μBTC (~R$ 2.500 / US$ 320) em prêmios. "
                       "Vencedores anunciados pelo @veracibot ao fim da promoção.",
         "why_title": "O que são microcausas?",
@@ -179,6 +181,8 @@ T = {
             ("4th and 5th places", "250 μBTC each"),
         ],
         "promo_cta": "I'm in",
+        "promo_count_many": "people have already signed up — join them!",
+        "promo_count_one": "person has already signed up — join them!",
         "promo_note": "5,000 μBTC (~US$ 320) in total prizes. Winners announced by "
                       "@veracibot when the contest ends.",
         "why_title": "What are microclaims?",

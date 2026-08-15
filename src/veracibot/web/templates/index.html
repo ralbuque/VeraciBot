@@ -15,6 +15,13 @@
   </div>
 </section>
 
+<section class="text-center my-5">
+  <div class="display-1 fw-bold text-gold">{{ promo_count }}</div>
+  <p class="text-secondary mb-0">
+    {{ t.promo_count_one if promo_count == 1 else t.promo_count_many }}
+  </p>
+</section>
+
 <section class="row g-3 mb-5">
   <div class="col-md-4">
     <div class="card h-100 p-4">
