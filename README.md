@@ -90,23 +90,23 @@ consumo de cota da X API). Não-convidados recebem o aviso uma única vez. Convi
 ## Pontuação (fact-check)
 
 Todo handle começa com **1000 pontos**. Chamar o bot custa 1 ponto (exige saldo ≥ 1;
-estornado se houver erro interno). O juiz identifica os papéis: autor da afirmação,
-contestador e a posição do chamador (afirma / contesta / neutro).
+estornado se houver erro interno ou caso não-julgável).
 
-**Chamador é parte** (afirma ou contesta; sem contestador na thread, chamar = contestar):
+**Fact-check** — as partes são sempre o **autor da afirmação** e **quem chamou** o
+bot (quem desmentiu antes na thread não pontua; a aposta é de quem aciona):
 
-| | Chamador | Outro lado |
+| | Chamador | Autor da afirmação |
 |---|---|---|
-| Certo | +11 (líquido +10) | +10 |
-| Errado | −10 (total −11) | −11 |
+| Afirmação falsa | +11 (líquido +10) | −11 |
+| Afirmação verdadeira | −10 (total −11) | +10 |
 
-**Chamador neutro** (terceiro perguntando quem está certo): paga só o custo;
-lado certo +10, lado errado −10.
+Self-check (autor confere a própria afirmação): verdadeira +11; falsa −10.
+Parcial / indeterminado / arquivado: fica só o custo do chamador.
 
-Parcial / indeterminado / recusado: ninguém ganha nem perde; fica só o custo do chamador.
-
-**Disputas** usam a mesma matriz, com vencedor/perdedor no lugar de certo/errado
-(o juiz indica o perdedor principal). Empate: só o custo do chamador.
+**Disputas** — as partes são quem argumentou (vencedor/perdedor indicados pelo
+juiz): chamador vence +11 / perde −10; outro lado +10 / −11. **Chamador neutro**
+(terceiro perguntando quem tem razão) paga só o custo e os lados disputam ±10.
+Empate: só o custo do chamador.
 
 ## Fase de provas (contradição factual)
 

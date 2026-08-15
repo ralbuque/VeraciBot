@@ -4,23 +4,19 @@ Regras (fact-check):
 - Todo handle começa com 1000 pontos.
 - Chamar o bot custa 1 ponto (exige saldo >= 1; estornado em erro interno).
 
-Papéis identificados pelo juiz: autor da afirmação (afirma), contestador (se houver)
-e a posição do chamador ("afirma" | "contesta" | "neutro").
+FACT-CHECK — as partes são sempre o AUTOR da afirmação e QUEM CHAMOU o bot
+(outros que desmentiram na thread não pontuam; a aposta é de quem aciona):
+- Chamador contesta a afirmação (padrão): falsa → chamador +11 (líquido +10) e
+  autor -11; verdadeira → chamador -10 (total -11) e autor +10.
+- Self-check (autor confere a própria afirmação): verdadeira +11; falsa -10.
+- Parcialmente verdadeiro / indeterminado / recusado: ninguém ganha nem perde;
+  permanece só o custo do chamador.
 
-1) Chamador é PARTE (afirma ou contesta):
-   - Chamador certo: +11 (líquido +10, devolve o custo). Chamador errado: -10 (total -11).
-   - Outro lado certo: +10. Outro lado errado: -11 (10 por errar + 1 pelo uso do sistema).
-2) Chamador NEUTRO (terceiro perguntando quem está certo entre dois que discutem):
-   - Chamador: só o custo de 1 ponto.
-   - Lado certo: +10. Lado errado: -10.
-   - Sem contestador na thread, chamar = contestar (cai na regra 1).
-3) Parcialmente verdadeiro / indeterminado / recusado: ninguém ganha nem perde;
-   permanece só o custo do chamador.
-
-DISPUTAS seguem a mesma matriz, com vencedor/perdedor no lugar de certo/errado:
+DISPUTAS — as partes são quem argumentou (vencedor/perdedor indicados pelo juiz):
 - Chamador vence: +11 (líquido +10); perdedor -11.
 - Chamador perde: -10 (total -11); vencedor +10.
-- Chamador neutro: só o custo; vencedor +10, perdedor -10.
+- Chamador NEUTRO (terceiro perguntando quem tem razão): só o custo;
+  vencedor +10, perdedor -10.
 - Empate ou sem vencedor: só o custo do chamador.
 """
 from __future__ import annotations
@@ -128,39 +124,27 @@ def apply_fact_check_scores(
 
     claim_true = vf == "verdadeiro"
     autor = _clean(verdict.get("autor_afirmacao"))
-    contestador = _clean(verdict.get("contestador"))
     autor_id = resolve_user_id(thread, autor) if autor else None
-    contest_id = resolve_user_id(thread, contestador) if contestador else None
-
     req = requester_username.lower()
 
-    # Posição do chamador: identidade na thread tem precedência sobre o juiz.
-    if autor and autor.lower() == req:
-        posicao = "afirma"
-    elif contestador and contestador.lower() == req:
-        posicao = "contesta"
-    else:
-        posicao = verdict.get("posicao_chamador") or "contesta"
-    # Neutro sem contestador identificado: chamar = contestar.
-    if posicao == "neutro" and not contestador:
-        posicao = "contesta"
+    # Fact-check: a aposta é sempre de quem chamou o bot. Quem desmentiu antes na
+    # thread não pontua — as partes são o autor da afirmação e o chamador.
+    self_check = bool(autor and autor.lower() == req) or (
+        autor_id is not None and autor_id == requester_id
+    )
 
     changes: list[tuple[str | None, str, int]] = []  # (user_id, username, delta)
-
-    if posicao == "neutro":
-        # Terceiro neutro: só paga o custo; os dois lados disputam ±10.
-        if autor and autor.lower() != req:
-            changes.append((autor_id, autor, +10 if claim_true else -10))
-        if contestador and contestador.lower() != req and contestador.lower() != autor.lower():
-            changes.append((contest_id, contestador, -10 if claim_true else +10))
+    if self_check:
+        # Autor defende a própria afirmação.
+        changes.append((requester_id, requester_username,
+                        +11 if claim_true else -10))
     else:
-        caller_right = (posicao == "afirma") == claim_true
-        changes.append((requester_id, requester_username, +11 if caller_right else -10))
-        # Outro lado (se existir e não for o próprio chamador)
-        other = contestador if posicao == "afirma" else autor
-        other_id = contest_id if posicao == "afirma" else autor_id
-        if other and other.lower() != req:
-            changes.append((other_id, other, -11 if caller_right else +10))
+        # Chamador contesta a afirmação.
+        caller_right = not claim_true
+        changes.append((requester_id, requester_username,
+                        +11 if caller_right else -10))
+        if autor:
+            changes.append((autor_id, autor, -11 if caller_right else +10))
 
     return _apply(store, changes, f"fact_check:{vf}", conversation_id)
 
