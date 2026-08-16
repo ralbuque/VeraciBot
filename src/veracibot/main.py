@@ -2,6 +2,8 @@
 import logging
 import re
 import time
+
+import tweepy
 from datetime import datetime, timedelta, timezone
 
 from .config import load_config
@@ -577,8 +579,15 @@ def handle_member_invites(mention, invited, x, store, cfg) -> None:
 
 def poll_owner_invites(x: XClient, store: Store, cfg) -> None:
     """Tweets do próprio @veracibot com 'Convido @fulano': convites sem limite."""
-    since = store.get_state("own_invites_since_id")
-    for tweet in x.fetch_own_invites(since):
+    since = store.get_state("own_invites_since_id") or None
+    try:
+        tweets = x.fetch_own_invites(since)
+    except tweepy.errors.BadRequest:
+        # since_id com mais de 7 dias: fora da janela da busca recente → 400.
+        log.warning("since_id dos convites do dono expirou (>7 dias); resetando.")
+        store.set_state("own_invites_since_id", "")
+        return
+    for tweet in tweets:
         handles = parse_invites(tweet["text"], exclude={cfg.bot_handle.lower()})
         accepted = []
         for handle in handles:
@@ -607,19 +616,29 @@ def run() -> None:
 
     while True:
         try:
-            since_id = store.get_since_id()
-            mentions = x.fetch_mentions(since_id)
+            since_id = store.get_since_id() or None
+            try:
+                mentions = x.fetch_mentions(since_id)
+            except tweepy.errors.BadRequest:
+                log.warning("since_id das menções expirou (>7 dias); resetando.")
+                store.set_since_id("")
+                mentions = []
             if mentions:
                 log.info("%d menção(ões) nova(s).", len(mentions))
             for mention in mentions:
                 process_mention(mention, x, judge, store, cfg)
                 store.set_since_id(mention["id"])
-            poll_owner_invites(x, store, cfg)
-            check_appeals(x, store, cfg)
-            check_expired_compositions(x, store, cfg)
-            promo_tick(x, store, cfg)
         except Exception:
-            log.exception("Erro no ciclo de polling")
+            log.exception("Erro no processamento de menções")
+
+        # Cada tarefa auxiliar falha sozinha, sem derrubar as demais.
+        for task in (poll_owner_invites, check_appeals,
+                     check_expired_compositions, promo_tick):
+            try:
+                task(x, store, cfg)
+            except Exception:
+                log.exception("Erro em %s", task.__name__)
+
         time.sleep(cfg.poll_interval_seconds)
 
 
