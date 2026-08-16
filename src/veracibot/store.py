@@ -60,6 +60,14 @@ CREATE TABLE IF NOT EXISTS appeals (
     created_at TEXT NOT NULL,
     resolved_at TEXT
 );
+CREATE TABLE IF NOT EXISTS outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    in_reply_to TEXT,               -- NULL = tweet avulso
+    attempts INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    sent_at TEXT
+);
 CREATE TABLE IF NOT EXISTS promo_participants (
     user_id TEXT PRIMARY KEY,
     username TEXT,
@@ -270,6 +278,41 @@ class Store:
         self.conn.execute(
             "UPDATE compositions SET status = ?, resolved_at = ? WHERE conversation_id = ?",
             (status, datetime.now(timezone.utc).isoformat(), conversation_id),
+        )
+        self.conn.commit()
+
+    # --- outbox (escritas pendentes) ---
+    def enqueue_post(self, text: str, in_reply_to: str | None = None) -> None:
+        self.conn.execute(
+            "INSERT INTO outbox (text, in_reply_to, created_at) VALUES (?, ?, ?)",
+            (text, in_reply_to, datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def pending_outbox(self, limit: int = 5) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT id, text, in_reply_to FROM outbox "
+            "WHERE sent_at IS NULL AND attempts < 10 ORDER BY id LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [{"id": r[0], "text": r[1], "in_reply_to": r[2]} for r in rows]
+
+    def mark_outbox_sent(self, outbox_id: int) -> None:
+        self.conn.execute(
+            "UPDATE outbox SET sent_at = ? WHERE id = ?",
+            (datetime.now(timezone.utc).isoformat(), outbox_id),
+        )
+        self.conn.commit()
+
+    def mark_outbox_failed(self, outbox_id: int) -> None:
+        self.conn.execute(
+            "UPDATE outbox SET attempts = 99 WHERE id = ?", (outbox_id,)
+        )
+        self.conn.commit()
+
+    def bump_outbox_attempt(self, outbox_id: int) -> None:
+        self.conn.execute(
+            "UPDATE outbox SET attempts = attempts + 1 WHERE id = ?", (outbox_id,)
         )
         self.conn.commit()
 

@@ -2,12 +2,20 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import tweepy
 
 from .config import Config
 
 log = logging.getLogger(__name__)
+
+# Espaçamento mínimo entre escritas, para não parecer rajada de spam ao X.
+WRITE_SPACING_SECONDS = 6
+
+
+def _is_locked(exc: Exception) -> bool:
+    return "temporarily locked" in str(exc).lower()
 
 TWEET_FIELDS = ["author_id", "conversation_id", "created_at", "in_reply_to_user_id",
                 "referenced_tweets", "attachments", "entities"]
@@ -53,6 +61,8 @@ def _tweet_to_dict(tweet, users: dict, media: dict | None = None) -> dict:
 class XClient:
     def __init__(self, cfg: Config):
         self.cfg = cfg
+        self.store = None       # anexado em main.run() para o outbox
+        self._last_write = 0.0
         # Leitura (app-only) e escrita (user context) no mesmo client.
         self.client = tweepy.Client(
             bearer_token=cfg.x_bearer_token,
@@ -198,14 +208,32 @@ class XClient:
             log.warning("Falha ao verificar seguidor %s", user_id, exc_info=True)
         return False
 
-    def post_tweet(self, text: str) -> str | None:
-        """Tweet avulso (anúncios da promoção)."""
-        try:
-            resp = self.client.create_tweet(text=text)
-        except tweepy.errors.Forbidden as e:
-            log.warning("Tweet avulso proibido: %s", e)
-            return None
+    def _throttle(self) -> None:
+        wait = WRITE_SPACING_SECONDS - (time.time() - self._last_write)
+        if wait > 0:
+            time.sleep(wait)
+        self._last_write = time.time()
+
+    def send_raw(self, text: str, in_reply_to: str | None = None) -> str | None:
+        """Envia com throttle; propaga exceções (uso interno e do outbox)."""
+        self._throttle()
+        kwargs = {"text": text}
+        if in_reply_to:
+            kwargs["in_reply_to_tweet_id"] = in_reply_to
+        resp = self.client.create_tweet(**kwargs)
         return str(resp.data["id"]) if resp.data else None
+
+    def post_tweet(self, text: str) -> str | None:
+        """Tweet avulso (anúncios). Conta bloqueada → vai para o outbox."""
+        try:
+            return self.send_raw(text)
+        except tweepy.errors.Forbidden as e:
+            if _is_locked(e) and self.store:
+                self.store.enqueue_post(text, None)
+                log.warning("Conta bloqueada; tweet enfileirado no outbox.")
+            else:
+                log.warning("Tweet avulso proibido: %s", e)
+            return None
 
     def get_user_location(self, username: str) -> str | None:
         """Campo `location` (texto livre) do perfil de um usuário, se houver."""
@@ -253,13 +281,16 @@ class XClient:
 
     def post_reply(self, text: str, in_reply_to_tweet_id: str,
                    fallback: str | None = None) -> str | None:
-        """Posta um reply. Se o X recusar (403) e houver `fallback` (versão curta),
-        tenta uma vez com ele. Retorna None se nada puder ser postado."""
+        """Posta um reply. Conta bloqueada → outbox; 403 de tamanho → fallback;
+        outros 403 (thread restrita/tweet apagado) → descarta com aviso."""
         try:
-            resp = self.client.create_tweet(
-                text=text, in_reply_to_tweet_id=in_reply_to_tweet_id
-            )
+            tweet_id = self.send_raw(text, in_reply_to_tweet_id)
         except tweepy.errors.Forbidden as e:
+            if _is_locked(e):
+                if self.store:
+                    self.store.enqueue_post(text, in_reply_to_tweet_id)
+                    log.warning("Conta bloqueada; reply enfileirado no outbox.")
+                return None
             if fallback and fallback != text:
                 log.warning("Reply longo recusado em %s; tentando versão curta: %s",
                             in_reply_to_tweet_id, e)
@@ -269,6 +300,5 @@ class XClient:
                 in_reply_to_tweet_id, e,
             )
             return None
-        tweet_id = str(resp.data["id"]) if resp.data else None
         log.info("Reply postado: %s", tweet_id)
         return tweet_id

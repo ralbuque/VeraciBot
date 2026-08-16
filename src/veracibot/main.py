@@ -386,6 +386,28 @@ def handle_enrollment(mention: dict, x: XClient, store: Store, cfg) -> None:
         )
 
 
+def flush_outbox(x: XClient, store: Store, cfg) -> None:
+    """Reenvia escritas pendentes (ex.: perdidas com a conta bloqueada)."""
+    if not cfg.post_replies:
+        return
+    for item in store.pending_outbox(limit=5):
+        try:
+            tweet_id = x.send_raw(item["text"], item["in_reply_to"])
+            store.mark_outbox_sent(item["id"])
+            log.info("Outbox: item %s enviado (tweet %s).", item["id"], tweet_id)
+        except tweepy.errors.Forbidden as e:
+            if "temporarily locked" in str(e).lower():
+                store.bump_outbox_attempt(item["id"])
+                log.warning("Outbox: conta ainda bloqueada; tentando no próximo ciclo.")
+                break
+            store.mark_outbox_failed(item["id"])
+            log.warning("Outbox: item %s recusado definitivamente: %s", item["id"], e)
+        except Exception:
+            store.bump_outbox_attempt(item["id"])
+            log.exception("Outbox: erro ao enviar item %s", item["id"])
+            break
+
+
 def promo_tick(x: XClient, store: Store, cfg) -> None:
     """Reset dos pontos no início e anúncio dos vencedores no fim da promoção."""
     if not cfg.promo_enabled:
@@ -609,6 +631,7 @@ def run() -> None:
     cfg = load_config()
     store = Store(cfg.db_path)
     x = XClient(cfg)
+    x.store = store  # habilita o outbox nas escritas
     judge = Judge(cfg)
 
     log.info("VeraciBot iniciado. Monitorando @%s a cada %ss. Replies: %s",
@@ -633,7 +656,7 @@ def run() -> None:
 
         # Cada tarefa auxiliar falha sozinha, sem derrubar as demais.
         for task in (poll_owner_invites, check_appeals,
-                     check_expired_compositions, promo_tick):
+                     check_expired_compositions, promo_tick, flush_outbox):
             try:
                 task(x, store, cfg)
             except Exception:
