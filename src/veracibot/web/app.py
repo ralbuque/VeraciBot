@@ -332,6 +332,65 @@ async def admin_firm_status(request: Request, firm_id: int):
     return RedirectResponse("/admin", status_code=303)
 
 
+# --- reportar problemas (issues no GitHub) ---
+REPORT_CATEGORIES = ["Veredito errado", "Bot não respondeu", "Pontuação errada",
+                     "Problema no site", "Promoção", "Outro"]
+
+
+def _create_github_issue(category: str, message: str, case_link: str,
+                         contact: str) -> str | None:
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    repo = os.environ.get("GITHUB_REPO", "ralbuque/veracibot")
+    if not token:
+        return None
+    import requests
+    body = f"**Categoria:** {category}\n\n{message}\n"
+    if case_link:
+        body += f"\n**Caso/tweet:** {case_link}"
+    if contact:
+        body += f"\n**Contato:** {contact}"
+    body += "\n\n_Reportado via veraci.bot/problemas_"
+    try:
+        r = requests.post(
+            f"https://api.github.com/repos/{repo}/issues",
+            json={"title": f"[report] {category}: {message[:60]}", "body": body},
+            headers={"Authorization": f"Bearer {token}",
+                     "Accept": "application/vnd.github+json"},
+            timeout=15,
+        )
+        if r.status_code == 201:
+            return r.json().get("html_url")
+    except Exception:
+        pass
+    return None
+
+
+@app.get("/problemas")
+def report_page(request: Request):
+    return _render(request, "problemas.html", "pt", "/",
+                   categories=REPORT_CATEGORIES, msg="", issue_url=None, done=False)
+
+
+@app.post("/problemas")
+async def report_submit(request: Request):
+    form = await request.form()
+    if form.get("website"):  # honeypot anti-spam
+        return RedirectResponse("/", status_code=303)
+    message = (form.get("mensagem") or "").strip()
+    if len(message) < 10:
+        return _render(request, "problemas.html", "pt", "/",
+                       categories=REPORT_CATEGORIES, issue_url=None, done=False,
+                       msg="Descreva o problema com um pouco mais de detalhe.")
+    category = form.get("categoria") or "Outro"
+    case_link = (form.get("caso") or "").strip()[:300]
+    contact = (form.get("contato") or "").strip()[:150]
+    issue_url = _create_github_issue(category, message[:3000], case_link, contact)
+    webdb.add_feedback(category, message[:3000], case_link, contact, issue_url)
+    return _render(request, "problemas.html", "pt", "/",
+                   categories=REPORT_CATEGORIES, msg="", issue_url=issue_url,
+                   done=True)
+
+
 @app.get("/caso/{conversation_id}")
 def case_pt(request: Request, conversation_id: str):
     case = _case_detail(conversation_id)

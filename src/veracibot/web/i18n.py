@@ -146,6 +146,7 @@ T = {
         "no_cases": "Nenhum caso julgado ainda. Seja o primeiro: mencione @veracibot numa thread.",
         "no_scores": "Ninguém pontuou ainda.",
         "footer_note": "Vereditos gerados por IA. Podem conter erros — leia a justificativa e as fontes.",
+        "footer_report": "Reportar problema",
     },
     "en": {
         "title": "VeraciBot — The Internet Tribunal",
@@ -292,5 +293,6 @@ T = {
         "no_cases": "No cases ruled yet. Be the first: mention @veracibot in a thread.",
         "no_scores": "Nobody has scored yet.",
         "footer_note": "Verdicts are AI-generated and may contain errors — read the reasoning and sources.",
+        "footer_report": "Report a problem",
     },
 }

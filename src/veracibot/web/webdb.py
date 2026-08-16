@@ -23,6 +23,15 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL DEFAULT 'firm',   -- firm | admin
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT,
+    message TEXT NOT NULL,
+    case_link TEXT,
+    contact TEXT,
+    github_issue_url TEXT,
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS firms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER UNIQUE NOT NULL,
@@ -65,6 +74,21 @@ def init() -> None:
 def _hash(password: str, salt_hex: str) -> str:
     return hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt_hex),
                           n=16384, r=8, p=1).hex()
+
+
+# --- feedback / reports ---
+def add_feedback(category: str, message: str, case_link: str,
+                 contact: str, github_issue_url: str | None) -> None:
+    conn = _db()
+    try:
+        conn.execute(
+            "INSERT INTO feedback (category, message, case_link, contact, "
+            "github_issue_url, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (category, message, case_link, contact, github_issue_url, _now()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # --- usuários ---

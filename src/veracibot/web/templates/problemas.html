@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="col-12 col-md-8 col-lg-6 mx-auto">
+  <h1 class="h2">Reportar um problema</h1>
+  <p class="text-secondary">Achou um veredito errado, um bug ou algo estranho?
+    Conte aqui — cada relato vira uma tarefa pública no
+    <a href="https://github.com/ralbuque/veracibot/issues">GitHub do projeto</a>
+    e ajuda a melhorar o tribunal.</p>
+
+  {% if done %}
+  <div class="alert alert-success">
+    Relato registrado — obrigado! 🙏
+    {% if issue_url %}<br>Acompanhe em: <a href="{{ issue_url }}">{{ issue_url }}</a>{% endif %}
+  </div>
+  <p><a href="/">← Voltar ao início</a></p>
+  {% else %}
+  {% if msg %}<div class="alert alert-warning">{{ msg }}</div>{% endif %}
+  <form method="post" class="card p-4 mt-2 d-flex flex-column gap-3">
+    <div>
+      <label class="form-label">Tipo de problema</label>
+      <select class="form-select" name="categoria">
+        {% for c in categories %}<option>{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="form-label">O que aconteceu?</label>
+      <textarea class="form-control" name="mensagem" rows="5" required
+        placeholder="Descreva o problema. Quanto mais detalhe, melhor."></textarea>
+    </div>
+    <div>
+      <label class="form-label">Link do caso ou do tweet (opcional)</label>
+      <input class="form-control" name="caso" placeholder="https://x.com/... ou veraci.bot/caso/...">
+    </div>
+    <div>
+      <label class="form-label">Seu @ no X ou e-mail (opcional, para retorno)</label>
+      <input class="form-control" name="contato">
+    </div>
+    <input type="text" name="website" tabindex="-1" autocomplete="off"
+           style="position:absolute;left:-9999px" aria-hidden="true">
+    <button type="submit" class="btn btn-outline-gold">Enviar relato</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
