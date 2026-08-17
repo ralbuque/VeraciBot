@@ -321,6 +321,78 @@ def admin_page(request: Request):
                    firms=webdb.list_firms(), user=user)
 
 
+def _last_days(n: int = 14) -> list[str]:
+    from datetime import datetime, timedelta, timezone
+    today = datetime.now(timezone.utc).date()
+    return [(today - timedelta(days=i)).isoformat() for i in range(n - 1, -1, -1)]
+
+
+def _daily_counts(sql: str, args: tuple = ()) -> dict:
+    return {r["d"]: r["c"] for r in _query(sql, args)}
+
+
+@app.get("/admin/stats")
+def admin_stats(request: Request):
+    user = _current_user(request)
+    if not user or user["role"] != "admin":
+        return RedirectResponse("/login", status_code=303)
+
+    days = _last_days(14)
+    cutoff = days[0]
+
+    # casos por dia e tipo
+    fc = {d: 0 for d in days}
+    dp = {d: 0 for d in days}
+    dec = {d: 0 for d in days}
+    for r in _query("SELECT created_at, status, verdict_json FROM cases "
+                    "WHERE created_at >= ?", (cutoff,)):
+        d = (r["created_at"] or "")[:10]
+        if d not in fc:
+            continue
+        v = json.loads(r["verdict_json"] or "{}")
+        if r["status"] == "declined" or not v.get("julgavel"):
+            dec[d] += 1
+        elif v.get("tipo_caso") == "fact_check":
+            fc[d] += 1
+        else:
+            dp[d] += 1
+
+    calls = _daily_counts(
+        "SELECT substr(created_at,1,10) AS d, COUNT(*) AS c FROM ledger "
+        "WHERE reason = 'custo_chamada' AND created_at >= ? GROUP BY d", (cutoff,))
+    members = _daily_counts(
+        "SELECT substr(created_at,1,10) AS d, COUNT(*) AS c FROM members "
+        "WHERE created_at >= ? GROUP BY d", (cutoff,))
+    promo_joins = _daily_counts(
+        "SELECT substr(joined_at,1,10) AS d, COUNT(*) AS c FROM promo_participants "
+        "WHERE joined_at >= ? GROUP BY d", (cutoff,))
+
+    def _total(sql: str) -> int:
+        rows = _query(sql)
+        return rows[0]["c"] if rows else 0
+
+    totals = {
+        "cases": _total("SELECT COUNT(*) AS c FROM cases"),
+        "members": _total("SELECT COUNT(*) AS c FROM members"),
+        "participants": _total("SELECT COUNT(*) AS c FROM promo_participants"),
+        "calls_today": calls.get(days[-1], 0),
+        "outbox": _total("SELECT COUNT(*) AS c FROM outbox "
+                         "WHERE sent_at IS NULL AND attempts < 10"),
+        "feedback": _total("SELECT COUNT(*) AS c FROM feedback"),
+    }
+    chart = {
+        "days": [d[5:] for d in days],  # MM-DD
+        "fact": [fc[d] for d in days],
+        "disputes": [dp[d] for d in days],
+        "declined": [dec[d] for d in days],
+        "calls": [calls.get(d, 0) for d in days],
+        "members": [members.get(d, 0) for d in days],
+        "promo": [promo_joins.get(d, 0) for d in days],
+    }
+    return _render(request, "admin_stats.html", "pt", "/", user=user,
+                   totals=totals, chart_json=json.dumps(chart))
+
+
 @app.post("/admin/firm/{firm_id}")
 async def admin_firm_status(request: Request, firm_id: int):
     user = _current_user(request)

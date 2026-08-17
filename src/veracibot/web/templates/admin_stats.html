@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1 class="h2 mb-0">📊 Estatísticas do tribunal</h1>
+  <span class="text-secondary">{{ user.email }} ·
+    <a href="/admin">escritórios</a> · <a href="/logout">sair</a></span>
+</div>
+
+<section class="row g-3 text-center my-4">
+  {% for value, label in [(totals.cases, 'casos no total'),
+                          (totals.calls_today, 'chamadas hoje'),
+                          (totals.members, 'membros'),
+                          (totals.participants, 'inscritos na promoção'),
+                          (totals.outbox, 'replies na fila'),
+                          (totals.feedback, 'reports recebidos')] %}
+  <div class="col-6 col-md-2">
+    <div class="card h-100 py-3">
+      <div class="fs-3 text-gold">{{ value }}</div>
+      <div class="text-secondary small">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="mb-4">
+  <div class="card p-4">
+    <h2 class="h5">Casos por dia (14 dias)</h2>
+    <canvas id="chartCases" height="90"></canvas>
+  </div>
+</section>
+
+<section class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card p-4 h-100">
+      <h2 class="h5">Chamadas ao bot por dia</h2>
+      <canvas id="chartCalls" height="140"></canvas>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-4 h-100">
+      <h2 class="h5">Adesões por dia</h2>
+      <canvas id="chartJoins" height="140"></canvas>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const D = {{ chart_json | safe }};
+const teal = '#2a7086', navy = '#22304f', gold = '#d9a441', red = '#c0564d';
+
+new Chart(document.getElementById('chartCases'), {
+  type: 'bar',
+  data: { labels: D.days, datasets: [
+    { label: 'Fact-check', data: D.fact, backgroundColor: teal, stack: 's' },
+    { label: 'Disputas', data: D.disputes, backgroundColor: gold, stack: 's' },
+    { label: 'Arquivados', data: D.declined, backgroundColor: '#b9b2a4', stack: 's' },
+  ]},
+  options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } }
+});
+
+new Chart(document.getElementById('chartCalls'), {
+  type: 'line',
+  data: { labels: D.days, datasets: [
+    { label: 'Chamadas (custo cobrado)', data: D.calls, borderColor: navy,
+      backgroundColor: 'rgba(34,48,79,.12)', fill: true, tension: .3 },
+  ]},
+  options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+
+new Chart(document.getElementById('chartJoins'), {
+  type: 'line',
+  data: { labels: D.days, datasets: [
+    { label: 'Novos membros', data: D.members, borderColor: teal, tension: .3 },
+    { label: 'Inscrições na promoção', data: D.promo, borderColor: red, tension: .3 },
+  ]},
+  options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+</script>
+{% endblock %}
