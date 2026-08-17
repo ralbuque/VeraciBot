@@ -33,10 +33,15 @@ Regras para DISPUTAS:
 - Seja imparcial. Pode declarar empate ou razão parcial para ambos.
 
 Regras para FACT-CHECK:
-- Identifique a afirmação central (em geral, o tweet ao qual a menção respondeu).
-- Se tiver acesso à ferramenta de busca na web, use-a para verificar a afirmação e
-  cite as evidências encontradas na justificativa.
-- Classifique: "verdadeiro", "falso", "parcialmente_verdadeiro" ou "indeterminado".
+- DECOMPONHA o caso em AFIRMAÇÕES FACTUAIS INDEPENDENTES (máximo 4), cada uma
+  atômica e julgável por si. "Cortou o salário mínimo e sancionou lei X" são DUAS
+  afirmações, com dois vereditos separados.
+- Se tiver acesso à ferramenta de busca na web, use-a para verificar cada afirmação
+  e cite as evidências na justificativa correspondente.
+- Cada afirmação recebe: "verdadeiro", "falso" ou "indeterminado". NÃO existe
+  "parcialmente verdadeiro": julgue a afirmação COMO ENUNCIADA (leitura literal) —
+  exagero ou distorção relevante a torna FALSA ("cortou" quando houve estagnação é
+  falso). "Indeterminado" é só para o que não se pode verificar.
 - Opinião pura (gosto, preferência, juízo de valor) não é verificável → "indeterminado",
   explicando que se trata de opinião.
 - Identifique os papéis: quem AFIRMA (autor_afirmacao), quem CONTESTA a afirmação na
@@ -87,13 +92,14 @@ Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
   "partes": [{{"username": "...", "posicao": "..."}}],
   "vencedor": "username do vencedor, 'empate', ou null (disputas; null em fact_check)",
   "perdedor": "username (sem @) da parte principal que perdeu a disputa, ou null se empate/recusa",
-  "afirmacao": "a afirmação verificada, ou null (apenas fact_check)",
-  "autor_afirmacao": "username (sem @) de quem fez a afirmação verificada, ou null",
+  "afirmacao": "a afirmação principal verificada, ou null (apenas fact_check)",
+  "autor_afirmacao": "username (sem @) de quem fez a afirmação principal, ou null",
+  "afirmacoes": [{{"texto": "afirmação atômica", "autor": "username sem @", "veredito": "verdadeiro|falso|indeterminado", "justificativa": "2-4 frases com evidências"}}],
   "contestador": "username (sem @) de quem contesta a afirmação na thread, ou null",
   "posicao_chamador": "'afirma' se quem chamou o bot fez/defende a afirmação; 'contesta' se a contesta; 'neutro' se apenas pergunta quem está certo sem tomar partido; ou null",
-  "veredito_fatual": "verdadeiro|falso|parcialmente_verdadeiro|indeterminado, ou null",
+  "veredito_fatual": "verdadeiro|falso|indeterminado quando há UMA afirmação; null se houver várias",
   "gravidade": "leve" ou "grave",
-  "justificativa": "justificativa completa do veredito (3-6 frases, com evidências se houver)",
+  "justificativa": "resumo geral do julgamento (3-6 frases)",
   "veredito_curto": "veredito + essência da justificativa em até 200 caracteres, para o reply"
 }}"""
 
@@ -192,6 +198,43 @@ def _extract_json(message) -> dict:
     return _strip_cites(json.loads(raw[start : end + 1]))
 
 
+MAX_CLAIMS = 4
+
+
+def _normalize_fact(verdict: dict) -> dict:
+    """Garante `afirmacoes` normalizada (máx 4, vereditos binários+indeterminado)
+    e mantém os campos legados coerentes quando há uma única afirmação."""
+    if verdict.get("tipo_caso") != "fact_check":
+        return verdict
+    afs = verdict.get("afirmacoes") or []
+    if not afs and verdict.get("afirmacao"):
+        afs = [{
+            "texto": verdict.get("afirmacao"),
+            "autor": verdict.get("autor_afirmacao"),
+            "veredito": verdict.get("veredito_fatual"),
+            "justificativa": verdict.get("justificativa"),
+        }]
+    norm = []
+    for af in afs[:MAX_CLAIMS]:
+        v = (af.get("veredito") or "indeterminado").lower()
+        if v not in ("verdadeiro", "falso"):
+            v = "indeterminado"  # inclui o extinto 'parcialmente_verdadeiro'
+        norm.append({
+            "texto": af.get("texto") or "",
+            "autor": (af.get("autor") or verdict.get("autor_afirmacao") or "").lstrip("@"),
+            "veredito": v,
+            "justificativa": af.get("justificativa") or "",
+        })
+    verdict["afirmacoes"] = norm
+    if len(norm) == 1:
+        verdict["afirmacao"] = norm[0]["texto"] or verdict.get("afirmacao")
+        verdict["autor_afirmacao"] = norm[0]["autor"] or verdict.get("autor_afirmacao")
+        verdict["veredito_fatual"] = norm[0]["veredito"]
+    elif norm:
+        verdict["veredito_fatual"] = None
+    return verdict
+
+
 class Judge:
     def __init__(self, cfg: Config):
         self.cfg = cfg
@@ -221,7 +264,7 @@ class Judge:
             messages=[{"role": "user", "content": content}],
             **kwargs,
         )
-        verdict = _extract_json(message)
+        verdict = _normalize_fact(_extract_json(message))
         log.info(
             "Veredito: tipo=%s julgavel=%s vencedor=%s fatual=%s gravidade=%s",
             verdict.get("tipo_caso"),

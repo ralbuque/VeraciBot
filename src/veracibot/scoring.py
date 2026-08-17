@@ -118,35 +118,45 @@ def apply_fact_check_scores(
     """
     if verdict.get("tipo_caso") != "fact_check" or not verdict.get("julgavel"):
         return []
-    vf = verdict.get("veredito_fatual")
-    if vf not in ("verdadeiro", "falso"):
-        return []  # parcial/indeterminado: neutro
 
-    claim_true = vf == "verdadeiro"
-    autor = _clean(verdict.get("autor_afirmacao"))
-    autor_id = resolve_user_id(thread, autor) if autor else None
+    afs = verdict.get("afirmacoes") or [{
+        "autor": verdict.get("autor_afirmacao"),
+        "veredito": verdict.get("veredito_fatual"),
+    }]
     req = requester_username.lower()
 
-    # Fact-check: a aposta é sempre de quem chamou o bot. Quem desmentiu antes na
-    # thread não pontua — as partes são o autor da afirmação e o chamador.
-    self_check = bool(autor and autor.lower() == req) or (
-        autor_id is not None and autor_id == requester_id
-    )
+    # Cada afirmação pontua de forma independente. A aposta é sempre de quem
+    # chamou o bot; quem desmentiu antes na thread não pontua.
+    results: dict[str, list] = {}  # username_lower -> [username, delta_total, saldo]
+    for af in afs:
+        vf = (af.get("veredito") or "").lower()
+        if vf not in ("verdadeiro", "falso"):
+            continue  # indeterminado: neutro
+        claim_true = vf == "verdadeiro"
+        autor = _clean(af.get("autor"))
+        autor_id = resolve_user_id(thread, autor) if autor else None
+        self_check = bool(autor and autor.lower() == req) or (
+            autor_id is not None and autor_id == requester_id
+        )
 
-    changes: list[tuple[str | None, str, int]] = []  # (user_id, username, delta)
-    if self_check:
-        # Autor defende a própria afirmação.
-        changes.append((requester_id, requester_username,
-                        +11 if claim_true else -10))
-    else:
-        # Chamador contesta a afirmação.
-        caller_right = not claim_true
-        changes.append((requester_id, requester_username,
-                        +11 if caller_right else -10))
-        if autor:
-            changes.append((autor_id, autor, -11 if caller_right else +10))
+        changes: list[tuple[str | None, str, int]] = []
+        if self_check:
+            changes.append((requester_id, requester_username,
+                            +11 if claim_true else -10))
+        else:
+            caller_right = not claim_true
+            changes.append((requester_id, requester_username,
+                            +11 if caller_right else -10))
+            if autor:
+                changes.append((autor_id, autor, -11 if caller_right else +10))
 
-    return _apply(store, changes, f"fact_check:{vf}", conversation_id)
+        for username, delta, balance in _apply(
+                store, changes, f"fact_check:{vf}", conversation_id):
+            entry = results.setdefault(username.lower(), [username, 0, balance])
+            entry[1] += delta
+            entry[2] = balance
+
+    return [tuple(v) for v in results.values()]
 
 
 def _apply(

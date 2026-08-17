@@ -23,7 +23,20 @@
     <p>{{ case.contradicao }}</p>
     <p class="text-secondary">📎 {{ t.onus_label }}: @{{ case.onus }} — “{{ case.fato_a_provar }}”</p>
   {% else %}
-    {% if case.julgavel and case.tipo == 'fact_check' %}
+    {% if case.julgavel and case.tipo == 'fact_check' and case.afirmacoes|length > 1 %}
+      <h3 class="h4">🔍 {{ case.afirmacoes|length }} {{ t.claims_title }}</h3>
+      {% for af in case.afirmacoes %}
+      <div class="border-start border-3 ps-3 mb-3">
+        <p class="mb-1">
+          {% if af.veredito == 'verdadeiro' %}{{ t.verdict_true }}
+          {% elif af.veredito == 'falso' %}{{ t.verdict_false }}
+          {% else %}{{ t.verdict_undetermined }}{% endif %}
+        </p>
+        <p class="claim mb-1">“{{ af.texto }}”</p>
+        {% if af.justificativa %}<p class="text-secondary small mb-0">{{ af.justificativa }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    {% elif case.julgavel and case.tipo == 'fact_check' %}
       <h3 class="h4">
         {% if case.fatual == 'verdadeiro' %}{{ t.verdict_true }}
         {% elif case.fatual == 'falso' %}{{ t.verdict_false }}

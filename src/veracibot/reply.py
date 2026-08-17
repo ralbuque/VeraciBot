@@ -18,9 +18,28 @@ def x_len(text: str) -> int:
 FACT_LABELS = {
     "verdadeiro": "✅ Verdadeiro",
     "falso": "❌ Falso",
-    "parcialmente_verdadeiro": "⚠️ Parcialmente verdadeiro",
     "indeterminado": "❓ Indeterminado",
 }
+
+
+def multi_intro(n: int) -> str:
+    return (f"🔍 Este caso contém {n} afirmações factuais. Vou julgar cada uma "
+            "separadamente nas respostas abaixo. ⬇️")
+
+
+def claim_reply(idx: int, total: int, af: dict, max_len: int = MAX_LEN) -> str:
+    label = FACT_LABELS.get(af.get("veredito") or "indeterminado",
+                            FACT_LABELS["indeterminado"])
+    text = f"{label} ({idx}/{total}): “{af.get('texto', '')}”"
+    if af.get("justificativa"):
+        text += f"\n{af['justificativa']}"
+    return _trim(text, max_len)
+
+
+def attach_tail(text: str, scores: list | None = None, extra: str | None = None,
+                max_len: int = MAX_LEN, case_url: str | None = None) -> str:
+    """Anexa placar/composição/link a um texto já pronto (último reply da série)."""
+    return _compose(text, scores, extra, max_len, case_url)
 
 
 JUSTICE_LINE = "⚠️ Caso sério: recomendamos procurar a justiça."

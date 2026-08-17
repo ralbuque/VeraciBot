@@ -126,6 +126,7 @@ def _case_dict(r, placar: list) -> dict:
         "vencedor": v.get("vencedor"),
         "fatual": v.get("veredito_fatual"),
         "afirmacao": v.get("afirmacao"),
+        "afirmacoes": v.get("afirmacoes") or [],
         "gravidade": v.get("gravidade"),
         "contradicao": v.get("contradicao"),
         "onus": v.get("onus"),

@@ -11,7 +11,8 @@ from .geo import extract_uf
 from .invites import (INVITER_BALANCE, INVITES_PER_MEMBER, NO_INVITES_LEFT,
                       NOT_INVITED, NOT_INVITED_PROMO, WELCOME, parse_invites)
 from .judge import Judge
-from .reply import JUSTICE_LINE, composition_line, evidence_request, format_reply
+from .reply import (JUSTICE_LINE, attach_tail, claim_reply, composition_line,
+                    evidence_request, format_reply, multi_intro)
 from .scoring import CALL_COST, apply_scores, resolve_user_id
 from .store import Store
 from .x_client import XClient
@@ -158,13 +159,8 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
 
         reply_id = None
         if cfg.post_replies:
-            case_url = f"{cfg.site_url}/caso/{conv_id}"
-            reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len,
-                                      case_url)
-            fallback = (format_reply(verdict, scores, extra, case_url=case_url)
-                        if cfg.max_reply_len > 280 else None)
-            reply_id = x.post_reply(reply_text, in_reply_to_tweet_id=mention["id"],
-                                    fallback=fallback)
+            reply_id = post_verdict_replies(x, cfg, mention["id"], verdict,
+                                            scores, extra, conv_id)
 
         status = "judged" if verdict.get("julgavel") else "declined"
         store.save_case(conv_id, mention["id"], requester, status,
@@ -173,6 +169,32 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         log.exception("Erro ao processar conversa %s", conv_id)
         store.adjust_score(requester_id, requester, +CALL_COST, "estorno_erro", conv_id)
         store.save_case(conv_id, mention["id"], requester, "error")
+
+
+def post_verdict_replies(x: XClient, cfg, in_reply_to: str, verdict: dict,
+                         scores: list, extra: str | None, conv_id: str) -> str | None:
+    """Publica o veredito. Fact-check com várias afirmações vira uma corrente:
+    intro anunciando N afirmações + um reply por afirmação (placar no último)."""
+    case_url = f"{cfg.site_url}/caso/{conv_id}"
+    afs = verdict.get("afirmacoes") or []
+    if verdict.get("tipo_caso") == "fact_check" and len(afs) > 1:
+        first_id = x.post_reply(multi_intro(len(afs)),
+                                in_reply_to_tweet_id=in_reply_to)
+        prev = first_id or in_reply_to
+        total = len(afs)
+        for i, af in enumerate(afs, 1):
+            text = claim_reply(i, total, af, cfg.max_reply_len)
+            if i == total:
+                text = attach_tail(text, scores, extra, cfg.max_reply_len, case_url)
+            pid = x.post_reply(text, in_reply_to_tweet_id=prev)
+            prev = pid or prev
+        return first_id
+
+    reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len, case_url)
+    fallback = (format_reply(verdict, scores, extra, case_url=case_url)
+                if cfg.max_reply_len > 280 else None)
+    return x.post_reply(reply_text, in_reply_to_tweet_id=in_reply_to,
+                        fallback=fallback)
 
 
 def open_composition(verdict, scores, thread, requester_id, requester, conv_id, store):
@@ -244,13 +266,8 @@ def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
             extra = f"{JUSTICE_LINE}\n👩‍⚖️ Advogados parceiros: {cfg.site_url}/advogados"
         reply_id = None
         if cfg.post_replies:
-            case_url = f"{cfg.site_url}/caso/{conv_id}"
-            reply_text = format_reply(verdict, scores, extra, cfg.max_reply_len,
-                                      case_url)
-            fallback = (format_reply(verdict, scores, extra, case_url=case_url)
-                        if cfg.max_reply_len > 280 else None)
-            reply_id = x.post_reply(reply_text, in_reply_to_tweet_id=mention["id"],
-                                    fallback=fallback)
+            reply_id = post_verdict_replies(x, cfg, mention["id"], verdict,
+                                            scores, extra, conv_id)
         status = "judged" if verdict.get("julgavel") else "declined"
         store.save_case(conv_id, case["mention_tweet_id"], requester, status,
                         verdict=verdict, reply_tweet_id=reply_id, thread=thread)
