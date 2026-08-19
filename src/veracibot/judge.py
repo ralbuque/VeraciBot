@@ -88,6 +88,7 @@ Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
   "fato_a_provar": "o fato que precisa de prova, ou null",
   "julgavel": true/false,
   "motivo_recusa": "string ou null",
+  "recusa_silenciosa": "true se a menção NEM ERA um pedido de julgamento (conversa casual, sem afirmação nem disputa) — o bot não responde nada; false se houve pedido genuíno mas o tribunal recusa — o bot responde explicando o motivo_recusa; null se julgavel=true",
   "resumo_disputa": "1-2 frases resumindo o caso",
   "partes": [{{"username": "...", "posicao": "..."}}],
   "vencedor": "username do vencedor, 'empate', ou null (disputas; null em fact_check)",

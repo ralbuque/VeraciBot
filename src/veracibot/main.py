@@ -168,15 +168,24 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         # Nota: thread com 1 tweet é válida — pode ser fact-check de afirmação única.
         verdict = judge.judge(thread, requester)
 
-        # Caso não-julgável (menção fora de contexto, sem disputa/afirmação):
-        # silêncio total — sem reply, custo estornado; salva só para não reprocessar.
+        # Caso não-julgável: custo estornado sempre. Menção fora de contexto →
+        # silêncio; pedido genuíno recusado → reply explicando o motivo.
         if not verdict.get("julgavel"):
             store.adjust_score(requester_id, requester, +CALL_COST,
                                "estorno_arquivado", conv_id)
+            reply_id = None
+            if cfg.post_replies and verdict.get("recusa_silenciosa") is False:
+                reply_id = x.post_reply(
+                    format_reply(verdict, None,
+                                 "🪙 O ponto da chamada foi devolvido.",
+                                 cfg.max_reply_len),
+                    in_reply_to_tweet_id=mention["id"])
+                log.info("Caso %s arquivado com explicação.", conv_id)
+            else:
+                log.info("Caso %s arquivado em silêncio: %s", conv_id,
+                         verdict.get("motivo_recusa"))
             store.save_case(conv_id, mention["id"], requester, "declined",
-                            verdict=verdict, thread=thread)
-            log.info("Caso %s arquivado em silêncio: %s", conv_id,
-                     verdict.get("motivo_recusa"))
+                            verdict=verdict, reply_tweet_id=reply_id, thread=thread)
             return
 
         # Contradição factual decisiva: abre a fase de provas (sem pontuar ainda)
@@ -305,13 +314,20 @@ def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
 
         requester_id = resolve_user_id(thread, requester) or mention["author_id"]
 
-        # Veredito final não-julgável: mesmo tratamento silencioso.
+        # Veredito final não-julgável: mesmo tratamento (silêncio ou explicação).
         if not verdict.get("julgavel"):
             store.adjust_score(requester_id, requester, +CALL_COST,
                                "estorno_arquivado", conv_id)
+            reply_id = None
+            if cfg.post_replies and verdict.get("recusa_silenciosa") is False:
+                reply_id = x.post_reply(
+                    format_reply(verdict, None,
+                                 "🪙 O ponto da chamada foi devolvido.",
+                                 cfg.max_reply_len),
+                    in_reply_to_tweet_id=mention["id"])
             store.save_case(conv_id, case["mention_tweet_id"], requester, "declined",
-                            verdict=verdict, thread=thread)
-            log.info("Caso %s (fase de provas) arquivado em silêncio.", conv_id)
+                            verdict=verdict, reply_tweet_id=reply_id, thread=thread)
+            log.info("Caso %s (fase de provas) arquivado.", conv_id)
             return
 
         scores = apply_scores(store, verdict, requester_id, requester, thread, conv_id)
