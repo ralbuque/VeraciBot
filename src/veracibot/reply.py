@@ -43,6 +43,8 @@ def attach_tail(text: str, scores: list | None = None, extra: str | None = None,
 
 
 JUSTICE_LINE = "⚠️ Caso sério: recomendamos procurar a justiça."
+LOW_CRED_LINE = ("ℹ️ Fonte com histórico reiterado de afirmações falsas: "
+                 "este caso não movimenta pontos.")
 
 
 def evidence_request(verdict: dict, hours: int, max_len: int = MAX_LEN) -> str:

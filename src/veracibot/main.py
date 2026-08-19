@@ -11,8 +11,8 @@ from .geo import extract_uf
 from .invites import (INVITER_BALANCE, INVITES_PER_MEMBER, NO_INVITES_LEFT,
                       NOT_INVITED, NOT_INVITED_PROMO, WELCOME, parse_invites)
 from .judge import Judge
-from .reply import (JUSTICE_LINE, attach_tail, claim_reply, composition_line,
-                    evidence_request, format_reply, multi_intro)
+from .reply import (JUSTICE_LINE, LOW_CRED_LINE, attach_tail, claim_reply,
+                    composition_line, evidence_request, format_reply, multi_intro)
 from .scoring import CALL_COST, apply_scores, resolve_user_id
 from .store import Store
 from .x_client import XClient
@@ -24,6 +24,20 @@ EVIDENCE_HOURS = 48
 
 class CreditsExhausted(Exception):
     """Créditos da API Anthropic esgotados: pausar julgamentos sem perder menções."""
+
+
+# Limites anti-farming / anti-spam
+RATE_CAP_PER_HOUR = 5
+PAIR_CAP_PER_WEEK = 5
+
+RATE_CAP_MSG = (
+    "⏳ @{handle}, você atingiu o limite de {n} casos por hora. A pausa protege "
+    "sua conta das regras anti-spam do X — volte daqui a pouco!"
+)
+PAIR_CAP_MSG = (
+    "⚖️ @{handle}, limite semanal de {n} checagens contra @{target} atingido. "
+    "Diversifique a caçada!"
+)
 APPEAL_COST = 5
 APPEAL_HOURS = 24
 
@@ -100,6 +114,17 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
     if store.is_member(requester):
         store.set_member_user_id(requester, requester_id)
 
+    # Limite horário: protege o usuário do anti-spam do X (e as cotas)
+    hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    if store.calls_in_window(requester_id, hour_ago) >= RATE_CAP_PER_HOUR:
+        log.info("@%s atingiu o limite de %d casos/hora; ignorando.",
+                 requester, RATE_CAP_PER_HOUR)
+        today = datetime.now(timezone.utc).date().isoformat()
+        if cfg.post_replies and store.notice_once(f"ratecap:{requester_id}:{today}"):
+            x.post_reply(RATE_CAP_MSG.format(handle=requester, n=RATE_CAP_PER_HOUR),
+                         in_reply_to_tweet_id=mention["id"])
+        return
+
     # Saldo mínimo para abrir um caso
     balance = store.get_balance(requester_id, requester)
     if balance < CALL_COST:
@@ -118,6 +143,28 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
     )
     try:
         thread = x.fetch_thread(conv_id, cfg.max_thread_tweets)
+
+        # Limite por par chamador→alvo: mata o farming de uma mesma conta
+        target = next((t for t in thread
+                       if t.get("author_id") != requester_id
+                       and (t.get("author_username") or "").lower()
+                       != cfg.bot_handle.lower()), None)
+        if target:
+            week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            if store.pair_scored_cases(requester_id, target["author_id"],
+                                       week_ago) >= PAIR_CAP_PER_WEEK:
+                store.adjust_score(requester_id, requester, +CALL_COST,
+                                   "estorno_limite", conv_id)
+                log.info("@%s atingiu o limite semanal contra @%s; caso não aberto.",
+                         requester, target["author_username"])
+                if cfg.post_replies and store.notice_once(
+                        f"paircap:{requester_id}:{target['author_id']}"):
+                    x.post_reply(
+                        PAIR_CAP_MSG.format(handle=requester, n=PAIR_CAP_PER_WEEK,
+                                            target=target["author_username"]),
+                        in_reply_to_tweet_id=mention["id"])
+                return
+
         # Nota: thread com 1 tweet é válida — pode ser fact-check de afirmação única.
         verdict = judge.judge(thread, requester)
 
@@ -157,6 +204,8 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
                                  conv_id, store)
         if verdict.get("julgavel") and verdict.get("gravidade") == "grave":
             extra = f"{JUSTICE_LINE}\n👩‍⚖️ Advogados parceiros: {cfg.site_url}/advogados"
+        if verdict.get("nota_credibilidade"):
+            extra = (extra + "\n" if extra else "") + LOW_CRED_LINE
         # Mostra o custo da chamada no placar quando o chamador não é parte apostadora.
         if all(u.lower() != requester.lower() for u, _, _ in scores):
             scores.append((requester, -CALL_COST, balance_after_cost))

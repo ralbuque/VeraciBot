@@ -108,6 +108,15 @@ juiz): chamador vence +11 / perde −10; outro lado +10 / −11. **Chamador neut
 (terceiro perguntando quem tem razão) paga só o custo e os lados disputam ±10.
 Empate: só o custo do chamador.
 
+## Limites anti-farming e anti-spam
+
+- **5 casos/hora por membro**: acima disso o bot ignora e avisa uma vez ao dia
+  (protege o usuário do anti-spam do X e as cotas de API).
+- **5 checagens/semana contra o mesmo autor** por chamador: além do limite, o caso
+  não é aberto (custo estornado, aviso único por par).
+- **Fonte de baixa credibilidade**: autor com 5+ afirmações já julgadas falsas —
+  novos casos contra ele são julgados, mas não movimentam pontos (o veredito informa).
+
 ## Fase de provas (contradição factual)
 
 Quando as partes se contradizem sobre um fato **decisivo** (ex.: "você prometeu por

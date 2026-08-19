@@ -28,6 +28,7 @@ from .store import Store
 log = logging.getLogger(__name__)
 
 CALL_COST = 1
+LOW_CRED_FALSES = 5  # autor com 5+ afirmações falsas: casos contra ele não pontuam
 
 
 def resolve_user_id(thread: list[dict], username: str) -> str | None:
@@ -138,6 +139,15 @@ def apply_fact_check_scores(
         self_check = bool(autor and autor.lower() == req) or (
             autor_id is not None and autor_id == requester_id
         )
+
+        # Fonte de baixa credibilidade: checar quem já acumulou LOW_CRED_FALSES
+        # falsos não movimenta pontos (mata o farming de alvo fácil).
+        if (not self_check and autor_id
+                and store.false_claim_count(autor_id) >= LOW_CRED_FALSES):
+            verdict["nota_credibilidade"] = True
+            log.info("Autor @%s é fonte de baixa credibilidade; afirmação sem pontos.",
+                     autor)
+            continue
 
         changes: list[tuple[str | None, str, int]] = []
         if self_check:

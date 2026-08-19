@@ -131,6 +131,44 @@ class Store:
         )
         self.conn.commit()
 
+    # --- limites anti-farming / anti-spam ---
+    def calls_in_window(self, user_id: str, since_iso: str) -> int:
+        row = self.conn.execute(
+            "SELECT COUNT(*) FROM ledger WHERE user_id = ? "
+            "AND reason = 'custo_chamada' AND created_at >= ?",
+            (user_id, since_iso),
+        ).fetchone()
+        return row[0]
+
+    def pair_scored_cases(self, caller_id: str, target_id: str,
+                          since_iso: str) -> int:
+        """Casos pontuados desse chamador em que o alvo perdeu/ganhou pontos."""
+        row = self.conn.execute(
+            "SELECT COUNT(DISTINCT l1.conversation_id) FROM ledger l1 "
+            "JOIN ledger l2 ON l2.conversation_id = l1.conversation_id "
+            "WHERE l1.user_id = ? AND l1.reason = 'custo_chamada' "
+            "AND l1.created_at >= ? AND l2.user_id = ? "
+            "AND l2.reason LIKE 'fact_check:%'",
+            (caller_id, since_iso, target_id),
+        ).fetchone()
+        return row[0]
+
+    def false_claim_count(self, user_id: str) -> int:
+        """Quantas afirmações desse autor já foram julgadas falsas."""
+        row = self.conn.execute(
+            "SELECT COUNT(*) FROM ledger WHERE user_id = ? "
+            "AND reason = 'fact_check:falso' AND delta < 0",
+            (user_id,),
+        ).fetchone()
+        return row[0]
+
+    def notice_once(self, key: str) -> bool:
+        """True apenas na primeira vez que a chave é vista (para avisos únicos)."""
+        if self.get_state("notice:" + key):
+            return False
+        self.set_state("notice:" + key, "1")
+        return True
+
     # --- membros (sistema de convites) ---
     def get_member(self, username: str) -> dict | None:
         row = self.conn.execute(
