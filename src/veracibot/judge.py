@@ -33,6 +33,10 @@ Regras para DISPUTAS:
 - Seja imparcial. Pode declarar empate ou razão parcial para ambos.
 
 Regras para FACT-CHECK:
+- ESCOPO: julgue APENAS afirmações do FIO PRINCIPAL (a cadeia do post original até
+  a menção ao bot, incluindo tweets citados por ela). Os OUTROS COMENTÁRIOS da
+  conversa são contexto: não recebem veredito nem pontos. Se algum trouxer
+  informação relevante ao caso, destaque-o no campo "observacao".
 - DECOMPONHA o caso em AFIRMAÇÕES FACTUAIS INDEPENDENTES (máximo 4), cada uma
   atômica e julgável por si. "Cortou o salário mínimo e sancionou lei X" são DUAS
   afirmações, com dois vereditos separados.
@@ -100,6 +104,7 @@ Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
   "posicao_chamador": "'afirma' se quem chamou o bot fez/defende a afirmação; 'contesta' se a contesta; 'neutro' se apenas pergunta quem está certo sem tomar partido; ou null",
   "veredito_fatual": "verdadeiro|falso|indeterminado quando há UMA afirmação; null se houver várias",
   "gravidade": "leve" ou "grave",
+  "observacao": "1 frase destacando comentário de terceiro com informação relevante (ex.: 'O comentário de @fulano trouxe dado relevante: ...'), ou null",
   "justificativa": "resumo geral do julgamento (3-6 frases)",
   "veredito_curto": "veredito + essência da justificativa em até 200 caracteres, para o reply"
 }}"""
@@ -124,11 +129,36 @@ MAX_IMAGES = 4
 MAX_IMAGE_BYTES = 4_500_000
 
 
-def _format_thread(thread: list[dict]) -> str:
-    by_id = {t["id"]: t for t in thread if t.get("id")}
+def _order_thread(thread: list[dict], mention_id: str | None):
+    """Separa o FIO PRINCIPAL (raiz → menção, com tweets citados por ele) dos
+    demais comentários da conversa (contexto)."""
+    by_id = {t.get("id"): t for t in thread if t.get("id")}
+    if not mention_id or mention_id not in by_id:
+        return thread, []
+    chain, seen = [], set()
+    cur = mention_id
+    while cur and cur in by_id and cur not in seen:
+        seen.add(cur)
+        t = by_id[cur]
+        chain.append(t)
+        qid = t.get("quoted_id")
+        if qid and qid in by_id and qid not in seen:
+            seen.add(qid)
+            chain.append(by_id[qid])
+        cur = t.get("replied_to_id")
+    chain.reverse()  # cronológico: raiz primeiro, menção por último
+    others = [t for t in thread if t.get("id") not in seen]
+    return chain, others
+
+
+def _format_thread(chain: list[dict], others: list[dict] | None = None) -> str:
+    others = others or []
+    by_id = {t["id"]: t for t in chain + others if t.get("id")}
     lines = []
     n_img = 0
-    for t in thread:
+
+    def render(t):
+        nonlocal n_img
         header = f"[@{t['author_username']} em {t['created_at']}]"
         if t.get("quoted_context"):
             header += " [TWEET CITADO — fora da thread]"
@@ -139,6 +169,17 @@ def _format_thread(thread: list[dict]) -> str:
             n_img += 1
             header += f" [Imagem {n_img}]"
         lines.append(f"{header}\n{t['text']}\n")
+
+    if others:
+        lines.append("=== FIO PRINCIPAL (da raiz até a chamada ao bot — "
+                     "só isto é julgável e pontuável) ===\n")
+    for t in chain:
+        render(t)
+    if others:
+        lines.append("\n=== OUTROS COMENTÁRIOS DA CONVERSA "
+                     "(apenas contexto; NÃO julgar nem pontuar) ===\n")
+        for t in others:
+            render(t)
     return "\n".join(lines)
 
 
@@ -242,21 +283,24 @@ class Judge:
         self.client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
 
     def judge(self, thread: list[dict], requester: str,
-              evidence: dict | None = None) -> dict:
-        """Julga a thread. `evidence` = {'onus','fato','expired'} na fase de provas."""
+              evidence: dict | None = None, mention_id: str | None = None) -> dict:
+        """Julga a thread. `evidence` = {'onus','fato','expired'} na fase de provas.
+        `mention_id` delimita o fio principal (julgável) do resto da conversa."""
         kwargs = {}
         if self.cfg.judge_web_search:
             kwargs["tools"] = [
                 {"type": "web_search_20250305", "name": "web_search", "max_uses": 3}
             ]
-        text = USER_PROMPT.format(requester=requester, thread_text=_format_thread(thread))
+        chain, others = _order_thread(thread, mention_id)
+        text = USER_PROMPT.format(requester=requester,
+                                  thread_text=_format_thread(chain, others))
         if evidence:
             text += EVIDENCE_PROMPT.format(
                 onus=evidence["onus"],
                 fato=evidence["fato"],
                 prazo_status="VENCIDO" if evidence["expired"] else "ainda em curso",
             )
-        content: list = _download_images(thread)
+        content: list = _download_images(chain + others)
         content.append({"type": "text", "text": text})
         message = self.client.messages.create(
             model=self.cfg.anthropic_model,

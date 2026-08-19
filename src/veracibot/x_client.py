@@ -41,12 +41,16 @@ def _tweet_to_dict(tweet, users: dict, media: dict | None = None) -> dict:
             if m is not None and m.type == "photo" and m.url:
                 media_urls.append(m.url)
     quoted_id = None
+    replied_to_id = None
     if tweet.referenced_tweets:
         for ref in tweet.referenced_tweets:
             if ref.type == "quoted":
                 quoted_id = str(ref.id)
+            elif ref.type == "replied_to":
+                replied_to_id = str(ref.id)
     return {
         "quoted_id": quoted_id,
+        "replied_to_id": replied_to_id,
         "id": str(tweet.id),
         "conversation_id": str(tweet.conversation_id),
         "author_id": str(tweet.author_id),

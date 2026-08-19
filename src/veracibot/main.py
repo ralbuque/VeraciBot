@@ -166,7 +166,7 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
                 return
 
         # Nota: thread com 1 tweet é válida — pode ser fact-check de afirmação única.
-        verdict = judge.judge(thread, requester)
+        verdict = judge.judge(thread, requester, mention_id=mention["id"])
 
         # Caso não-julgável: custo estornado sempre. Menção fora de contexto →
         # silêncio; pedido genuíno recusado → reply explicando o motivo.
@@ -215,6 +215,8 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
             extra = f"{JUSTICE_LINE}\n👩‍⚖️ Advogados parceiros: {cfg.site_url}/advogados"
         if verdict.get("nota_credibilidade"):
             extra = (extra + "\n" if extra else "") + LOW_CRED_LINE
+        if verdict.get("observacao"):
+            extra = (extra + "\n" if extra else "") + f"💬 {verdict['observacao']}"
         # Mostra o custo da chamada no placar quando o chamador não é parte apostadora.
         if all(u.lower() != requester.lower() for u, _, _ in scores):
             scores.append((requester, -CALL_COST, balance_after_cost))
@@ -307,7 +309,7 @@ def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
             "onus": verdict0.get("onus"),
             "fato": verdict0.get("fato_a_provar"),
             "expired": expired,
-        })
+        }, mention_id=mention["id"])
         if verdict.get("fase") == "pedido_provas" and not expired:
             log.info("Juiz ainda aguarda provas em %s; sem novo reply.", conv_id)
             return
