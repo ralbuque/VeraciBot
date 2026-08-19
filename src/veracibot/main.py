@@ -20,6 +20,10 @@ from .x_client import XClient
 COMPOSITION_DAYS = 7
 COMPOSITION_REFUND = 8
 EVIDENCE_HOURS = 48
+
+
+class CreditsExhausted(Exception):
+    """Créditos da API Anthropic esgotados: pausar julgamentos sem perder menções."""
 APPEAL_COST = 5
 APPEAL_HOURS = 24
 
@@ -165,9 +169,11 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         status = "judged" if verdict.get("julgavel") else "declined"
         store.save_case(conv_id, mention["id"], requester, status,
                         verdict=verdict, reply_tweet_id=reply_id, thread=thread)
-    except Exception:
+    except Exception as e:
         log.exception("Erro ao processar conversa %s", conv_id)
         store.adjust_score(requester_id, requester, +CALL_COST, "estorno_erro", conv_id)
+        if "credit balance" in str(e).lower():
+            raise CreditsExhausted() from e  # não salva o caso: rejulga na recarga
         store.save_case(conv_id, mention["id"], requester, "error")
 
 
@@ -666,7 +672,12 @@ def run() -> None:
             if mentions:
                 log.info("%d menção(ões) nova(s).", len(mentions))
             for mention in mentions:
-                process_mention(mention, x, judge, store, cfg)
+                try:
+                    process_mention(mention, x, judge, store, cfg)
+                except CreditsExhausted:
+                    log.error("Créditos da Anthropic esgotados! Julgamentos pausados; "
+                              "as menções pendentes serão reprocessadas após a recarga.")
+                    break  # não avança o since_id: retenta no próximo ciclo
                 store.set_since_id(mention["id"])
         except Exception:
             log.exception("Erro no processamento de menções")
