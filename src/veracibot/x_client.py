@@ -228,9 +228,14 @@ class XClient:
         return str(resp.data["id"]) if resp.data else None
 
     def post_tweet(self, text: str) -> str | None:
-        """Tweet avulso (anúncios). Conta bloqueada → vai para o outbox."""
+        """Tweet avulso (anúncios). Conta bloqueada/cota → vai para o outbox."""
         try:
             return self.send_raw(text)
+        except tweepy.errors.TooManyRequests:
+            if self.store:
+                self.store.enqueue_post(text, None)
+                log.warning("Cota da X API (429); tweet enfileirado no outbox.")
+            return None
         except tweepy.errors.Forbidden as e:
             if _is_locked(e) and self.store:
                 self.store.enqueue_post(text, None)
@@ -289,6 +294,11 @@ class XClient:
         outros 403 (thread restrita/tweet apagado) → descarta com aviso."""
         try:
             tweet_id = self.send_raw(text, in_reply_to_tweet_id)
+        except tweepy.errors.TooManyRequests:
+            if self.store:
+                self.store.enqueue_post(text, in_reply_to_tweet_id)
+                log.warning("Cota da X API (429); reply enfileirado no outbox.")
+            return None
         except tweepy.errors.Forbidden as e:
             if _is_locked(e):
                 if self.store:

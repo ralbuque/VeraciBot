@@ -476,6 +476,40 @@ def handle_enrollment(mention: dict, x: XClient, store: Store, cfg) -> None:
         )
 
 
+def send_alert(cfg, subject: str, body: str) -> None:
+    """Alerta operacional por e-mail (configurado via SMTP_* no .env)."""
+    if not (cfg.smtp_host and cfg.alert_email):
+        log.warning("Alerta não enviado (SMTP não configurado): %s", subject)
+        return
+    import smtplib
+    from email.mime.text import MIMEText
+    msg = MIMEText(body, _charset="utf-8")
+    msg["Subject"] = subject
+    msg["From"] = cfg.smtp_user or "veracibot"
+    msg["To"] = cfg.alert_email
+    try:
+        with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port, timeout=20) as s:
+            s.starttls()
+            if cfg.smtp_user:
+                s.login(cfg.smtp_user, cfg.smtp_password)
+            s.send_message(msg)
+        log.info("Alerta enviado para %s: %s", cfg.alert_email, subject)
+    except Exception:
+        log.exception("Falha ao enviar alerta por e-mail")
+
+
+def alert_x_quota(store: Store, cfg, context: str = "") -> None:
+    """Alerta (1x/dia) quando a X API devolve 429 — pode ser o teto mensal."""
+    log.error("Cota/limite da X API atingido%s.", f" ({context})" if context else "")
+    today = datetime.now(timezone.utc).date().isoformat()
+    if store.notice_once(f"alert:xquota:{today}"):
+        send_alert(cfg, "[VeraciBot] Cota da X API atingida",
+                   "A X API retornou 429 (limite ou cota atingida) — pode ser o teto "
+                   "mensal de leitura do plano. Verifique em developer.x.com → Usage "
+                   "(e considere upgrade se a promoção estiver consumindo muito). "
+                   "Leituras pausam até liberar; replies ficam guardados no outbox.")
+
+
 def flush_outbox(x: XClient, store: Store, cfg) -> None:
     """Reenvia escritas pendentes (ex.: perdidas com a conta bloqueada)."""
     if not cfg.post_replies:
@@ -489,6 +523,13 @@ def flush_outbox(x: XClient, store: Store, cfg) -> None:
             if "temporarily locked" in str(e).lower():
                 store.bump_outbox_attempt(item["id"])
                 log.warning("Outbox: conta ainda bloqueada; tentando no próximo ciclo.")
+                today = datetime.now(timezone.utc).date().isoformat()
+                if store.notice_once(f"alert:locked:{today}"):
+                    send_alert(cfg, "[VeraciBot] Conta do X bloqueada",
+                               "A conta @veracibot está temporariamente bloqueada "
+                               "pelo X. Entre em x.com com a conta do bot e complete "
+                               "o desafio de desbloqueio. Os replies estão "
+                               "enfileirados no outbox e sairão após o desbloqueio.")
                 break
             store.mark_outbox_failed(item["id"])
             log.warning("Outbox: item %s recusado definitivamente: %s", item["id"], e)
@@ -736,6 +777,9 @@ def run() -> None:
                 log.warning("since_id das menções expirou (>7 dias); resetando.")
                 store.set_since_id("")
                 mentions = []
+            except tweepy.errors.TooManyRequests:
+                alert_x_quota(store, cfg, "busca de menções")
+                mentions = []
             if mentions:
                 log.info("%d menção(ões) nova(s).", len(mentions))
             for mention in mentions:
@@ -744,6 +788,13 @@ def run() -> None:
                 except CreditsExhausted:
                     log.error("Créditos da Anthropic esgotados! Julgamentos pausados; "
                               "as menções pendentes serão reprocessadas após a recarga.")
+                    today = datetime.now(timezone.utc).date().isoformat()
+                    if store.notice_once(f"alert:credits:{today}"):
+                        send_alert(cfg, "[VeraciBot] Créditos da Anthropic esgotados",
+                                   "O juiz parou por falta de créditos na API da "
+                                   "Anthropic. Recarregue em console.anthropic.com → "
+                                   "Plans & Billing. As menções pendentes serão "
+                                   "reprocessadas automaticamente após a recarga.")
                     break  # não avança o since_id: retenta no próximo ciclo
                 store.set_since_id(mention["id"])
         except Exception:
@@ -754,6 +805,8 @@ def run() -> None:
                      check_expired_compositions, promo_tick, flush_outbox):
             try:
                 task(x, store, cfg)
+            except tweepy.errors.TooManyRequests:
+                alert_x_quota(store, cfg, task.__name__)
             except Exception:
                 log.exception("Erro em %s", task.__name__)
 

@@ -39,6 +39,11 @@ class Config:
     promo_enabled: bool
     promo_start: str
     promo_end: str
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    smtp_password: str
+    alert_email: str
 
 
 def load_config() -> Config:
@@ -63,4 +68,9 @@ def load_config() -> Config:
         promo_enabled=os.environ.get("PROMO_ENABLED", "false").lower() == "true",
         promo_start=os.environ.get("PROMO_START", "2026-08-16T00:00:00-03:00"),
         promo_end=os.environ.get("PROMO_END", "2026-08-23T00:00:00-03:00"),
+        smtp_host=os.environ.get("SMTP_HOST", ""),
+        smtp_port=int(os.environ.get("SMTP_PORT", "587")),
+        smtp_user=os.environ.get("SMTP_USER", ""),
+        smtp_password=os.environ.get("SMTP_PASSWORD", ""),
+        alert_email=os.environ.get("ALERT_EMAIL", ""),
     )
