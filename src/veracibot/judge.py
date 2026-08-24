@@ -27,6 +27,18 @@ PRIMEIRO, classifique o tipo de caso:
 - "fact_check": o cerne do caso é saber se uma afirmação é verdadeira. Inclui o caso
   em que a thread contém apenas UMA afirmação de UMA pessoa — a inferência é que o
   bot foi chamado para dizer se aquilo é verdade.
+- "debate": as partes defendem POSIÇÕES OPOSTAS sobre tema de opinião, valores ou
+  política (sem resposta factual única — ex.: "o aborto deveria ser legalizado?")
+  e pedem quem argumentou melhor.
+
+Regras para DEBATES:
+- Não há certo/errado factual: julgue o MÉRITO ARGUMENTATIVO — lógica, uso de
+  evidências, consistência interna, capacidade de responder aos contra-argumentos.
+- SEMPRE aponte um vencedor (campos vencedor/perdedor), exceto quando nenhum lado
+  apresentou argumento de verdade (aí "empate", ou recuse).
+- Reconheça na justificativa os méritos do lado perdedor quando existirem.
+- NUNCA declare a posição vencedora como "a correta" — venceu a argumentação,
+  não a tese.
 
 Regras para DISPUTAS:
 - Julgue apenas lógica, evidências e coerência. Não julgue tom ou popularidade.
@@ -85,7 +97,7 @@ NUNCA use tags de citação como <cite> no texto — mencione as fontes em lingu
 natural na justificativa (ex.: "segundo o Metrópoles, ...").
 Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
 {{
-  "tipo_caso": "disputa" ou "fact_check",
+  "tipo_caso": "disputa", "fact_check" ou "debate",
   "fase": "veredito" ou "pedido_provas",
   "contradicao": "resumo da contradição factual, ou null",
   "onus": "username (sem @) de quem deve provar, ou null",
@@ -95,8 +107,8 @@ Ao final, retorne SOMENTE um objeto JSON válido, sem markdown, no formato:
   "recusa_silenciosa": "true se a menção NEM ERA um pedido de julgamento (conversa casual, sem afirmação nem disputa) — o bot não responde nada; false se houve pedido genuíno mas o tribunal recusa — o bot responde explicando o motivo_recusa; null se julgavel=true",
   "resumo_disputa": "1-2 frases resumindo o caso",
   "partes": [{{"username": "...", "posicao": "..."}}],
-  "vencedor": "username do vencedor, 'empate', ou null (disputas; null em fact_check)",
-  "perdedor": "username (sem @) da parte principal que perdeu a disputa, ou null se empate/recusa",
+  "vencedor": "username do vencedor, 'empate', ou null (disputas e debates; null em fact_check)",
+  "perdedor": "username (sem @) da parte principal que perdeu a disputa/debate, ou null se empate/recusa",
   "afirmacao": "a afirmação principal verificada, ou null (apenas fact_check)",
   "autor_afirmacao": "username (sem @) de quem fez a afirmação principal, ou null",
   "afirmacoes": [{{"texto": "afirmação atômica", "autor": "username sem @", "veredito": "verdadeiro|falso|indeterminado", "justificativa": "2-4 frases com evidências"}}],
@@ -115,6 +127,14 @@ Thread em ordem cronológica (a menção ao bot foi feita por @{requester}):
 {thread_text}
 
 Emita seu julgamento em JSON."""
+
+PARTIES_PROMPT = """\
+
+PARTES DO PROCESSO: @{p1} × @{p2}{tipo_note}.
+Julgue considerando SOMENTE os argumentos dessas duas contas (e o que elas citarem);
+comentários de terceiros são apenas contexto — não os julgue nem pontue, mas pode
+destacá-los no campo "observacao". Os campos vencedor/perdedor e partes devem se
+referir exclusivamente a essas duas contas."""
 
 EVIDENCE_PROMPT = """\
 
@@ -283,9 +303,12 @@ class Judge:
         self.client = anthropic.Anthropic(api_key=cfg.anthropic_api_key)
 
     def judge(self, thread: list[dict], requester: str,
-              evidence: dict | None = None, mention_id: str | None = None) -> dict:
+              evidence: dict | None = None, mention_id: str | None = None,
+              parties: tuple[str, str] | None = None,
+              expected_tipo: str | None = None) -> dict:
         """Julga a thread. `evidence` = {'onus','fato','expired'} na fase de provas.
-        `mention_id` delimita o fio principal (julgável) do resto da conversa."""
+        `mention_id` delimita o fio principal; `parties` restringe o julgamento a
+        duas contas; `expected_tipo` fixa o tipo em processos abertos formalmente."""
         kwargs = {}
         if self.cfg.judge_web_search:
             kwargs["tools"] = [
@@ -294,6 +317,11 @@ class Judge:
         chain, others = _order_thread(thread, mention_id)
         text = USER_PROMPT.format(requester=requester,
                                   thread_text=_format_thread(chain, others))
+        if parties:
+            tipo_note = (f" — processo aberto formalmente como {expected_tipo.upper()}"
+                         if expected_tipo else "")
+            text += PARTIES_PROMPT.format(p1=parties[0], p2=parties[1],
+                                          tipo_note=tipo_note)
         if evidence:
             text += EVIDENCE_PROMPT.format(
                 onus=evidence["onus"],

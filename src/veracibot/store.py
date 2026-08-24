@@ -60,6 +60,19 @@ CREATE TABLE IF NOT EXISTS appeals (
     created_at TEXT NOT NULL,
     resolved_at TEXT
 );
+CREATE TABLE IF NOT EXISTS processes (
+    conversation_id TEXT PRIMARY KEY,
+    tipo TEXT NOT NULL,             -- debate | disputa
+    opener_id TEXT NOT NULL,
+    opener_username TEXT,
+    party1 TEXT NOT NULL,           -- lowercase, sem @
+    party2 TEXT NOT NULL,
+    tema TEXT,
+    mention_tweet_id TEXT,
+    status TEXT NOT NULL,           -- aberto | julgado | expirado
+    created_at TEXT NOT NULL,
+    resolved_at TEXT
+);
 CREATE TABLE IF NOT EXISTS outbox (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
@@ -319,6 +332,46 @@ class Store:
         )
         self.conn.commit()
 
+    # --- processos com partes registradas (debate/disputa formal) ---
+    def create_process(self, conversation_id: str, tipo: str, opener_id: str,
+                       opener_username: str, party1: str, party2: str,
+                       tema: str | None, mention_tweet_id: str) -> None:
+        self.conn.execute(
+            "INSERT OR REPLACE INTO processes (conversation_id, tipo, opener_id, "
+            "opener_username, party1, party2, tema, mention_tweet_id, status, "
+            "created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aberto', ?)",
+            (conversation_id, tipo, opener_id, opener_username, party1.lower(),
+             party2.lower(), tema, mention_tweet_id,
+             datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def get_open_process(self, conversation_id: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT * FROM processes WHERE conversation_id = ? AND status = 'aberto'",
+            (conversation_id,),
+        ).fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in self.conn.execute(
+            "SELECT * FROM processes LIMIT 0").description]
+        return dict(zip(cols, row))
+
+    def expired_open_processes(self, cutoff_iso: str) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT conversation_id FROM processes "
+            "WHERE status = 'aberto' AND created_at < ?", (cutoff_iso,)
+        ).fetchall()
+        return [self.get_open_process(r[0]) for r in rows]
+
+    def resolve_process(self, conversation_id: str, status: str) -> None:
+        self.conn.execute(
+            "UPDATE processes SET status = ?, resolved_at = ? "
+            "WHERE conversation_id = ?",
+            (status, datetime.now(timezone.utc).isoformat(), conversation_id),
+        )
+        self.conn.commit()
+
     # --- outbox (escritas pendentes) ---
     def enqueue_post(self, text: str, in_reply_to: str | None = None) -> None:
         self.conn.execute(
@@ -437,7 +490,8 @@ class Store:
         rows = self.conn.execute(
             "SELECT user_id, username, SUM(delta) AS total FROM ledger "
             "WHERE conversation_id = ? AND (reason LIKE 'fact_check:%' "
-            "OR reason LIKE 'disputa:%' OR reason = 'reforma_recurso') "
+            "OR reason LIKE 'disputa:%' OR reason LIKE 'debate:%' "
+            "OR reason = 'reforma_recurso') "
             "GROUP BY user_id", (conversation_id,)
         ).fetchall()
         return [{"user_id": r[0], "username": r[1], "total": r[2]} for r in rows]

@@ -55,6 +55,42 @@ def _promo_started() -> bool:
         return False
 
 
+def _promo_ended() -> bool:
+    from datetime import datetime, timezone
+    end = os.environ.get("PROMO_END", "2026-08-23T00:00:00-03:00")
+    try:
+        return datetime.now(timezone.utc) >= datetime.fromisoformat(end)
+    except ValueError:
+        return False
+
+
+def _promo_active() -> bool:
+    return PROMO and not _promo_ended()
+
+
+PROMO_PRIZES = ["3.000 μBTC", "1.000 μBTC", "500 μBTC", "250 μBTC", "250 μBTC"]
+
+
+def _promo_winners() -> list[dict]:
+    """Top 5 com o saldo congelado no encerramento (desconta deltas posteriores)."""
+    if not (PROMO and _promo_ended()):
+        return []
+    from datetime import datetime, timezone
+    end_raw = os.environ.get("PROMO_END", "2026-08-23T00:00:00-03:00")
+    # ledger grava em UTC: converte o fim para UTC antes de comparar strings
+    end = datetime.fromisoformat(end_raw).astimezone(timezone.utc).isoformat()
+    rows = _query(
+        "SELECT p.username AS username, "
+        "COALESCE(s.balance, 1000) - COALESCE((SELECT SUM(l.delta) FROM ledger l "
+        "WHERE l.user_id = p.user_id AND l.created_at >= ?), 0) AS final "
+        "FROM promo_participants p LEFT JOIN scores s ON s.user_id = p.user_id "
+        "ORDER BY final DESC, p.username LIMIT 5",
+        (end,),
+    )
+    return [{"username": r["username"], "final": r["final"],
+             "prize": PROMO_PRIZES[i]} for i, r in enumerate(rows)]
+
+
 def _current_user(request: Request) -> dict | None:
     uid = request.session.get("uid")
     return webdb.get_user(uid) if uid else None
@@ -150,7 +186,7 @@ def _cases(limit: int = 50) -> list[dict]:
     for r in deltas:
         dmap.setdefault(r["conversation_id"], []).append((r["username"], r["d"]))
     cases = [_case_dict(r, dmap.get(r["conversation_id"], [])) for r in rows]
-    if PROMO:  # modo promoção: o site exibe só checagens de fato
+    if _promo_active():  # modo promoção: o site exibe só checagens de fato
         cases = [c for c in cases if c["tipo"] == "fact_check" or not c["julgavel"]]
     return cases
 
@@ -190,7 +226,7 @@ def _render(request: Request, template: str, lang: str, alt: str, **ctx):
             "lang": lang,
             "p": PATHS[lang],
             "alt": alt,
-            "promo": PROMO,
+            "promo": _promo_active(),
             **ctx,
         },
     )
@@ -199,13 +235,15 @@ def _render(request: Request, template: str, lang: str, alt: str, **ctx):
 @app.get("/")
 def index_pt(request: Request):
     return _render(request, "index.html", "pt", "/en", stats=_stats(),
-                   promo_count=_promo_count() if PROMO else 0)
+                   promo_count=_promo_count() if _promo_active() else 0,
+                   winners=_promo_winners())
 
 
 @app.get("/en")
 def index_en(request: Request):
     return _render(request, "index.html", "en", "/", stats=_stats(),
-                   promo_count=_promo_count() if PROMO else 0)
+                   promo_count=_promo_count() if _promo_active() else 0,
+                   winners=_promo_winners())
 
 
 @app.get("/ranking")

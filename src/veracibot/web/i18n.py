@@ -37,6 +37,10 @@ T = {
         "promo_cta": "Quero participar",
         "promo_count_many": "pessoas já estão inscritas — participe você também!",
         "promo_count_one": "pessoa já está inscrita — participe você também!",
+        "winners_title": "Vencedores da promoção Em Busca da Verdade",
+        "winners_note": "Placar congelado no encerramento (22/08 às 24h). Prêmios "
+                        "pagos em microbitcoins no dia 31/08. Obrigado a todos os "
+                        "caçadores da verdade — vem aí o Ciclo de Debates!",
         "promo_note": "Total de 5.000 μBTC (~R$ 2.500 / US$ 320) em prêmios. "
                       "Vencedores anunciados pelo @veracibot ao fim da promoção.",
         "why_title": "O que são microcausas?",
@@ -101,6 +105,7 @@ T = {
         "cases_sub": "Vereditos emitidos pelo tribunal, do mais recente ao mais antigo.",
         "case_dispute": "Disputa",
         "case_fact": "Checagem de fato",
+        "case_debate": "Debate",
         "case_declined": "Arquivado",
         "case_evidence": "Aguardando provas",
         "winner": "Vencedor",
@@ -185,6 +190,10 @@ T = {
         "promo_cta": "I'm in",
         "promo_count_many": "people have already signed up — join them!",
         "promo_count_one": "person has already signed up — join them!",
+        "winners_title": "Truth Hunt winners",
+        "winners_note": "Scores frozen at the end of the contest (Aug 22, 24:00). "
+                        "Prizes paid in microbitcoins on Aug 31. Thanks to every "
+                        "truth hunter — the Debate Cycle is coming!",
         "promo_note": "5,000 μBTC (~US$ 320) in total prizes. Winners announced by "
                       "@veracibot when the contest ends.",
         "why_title": "What are microclaims?",
@@ -249,6 +258,7 @@ T = {
         "cases_sub": "Verdicts issued by the tribunal, newest first.",
         "case_dispute": "Dispute",
         "case_fact": "Fact-check",
+        "case_debate": "Debate",
         "case_declined": "Dismissed",
         "case_evidence": "Awaiting evidence",
         "winner": "Winner",

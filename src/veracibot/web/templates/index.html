@@ -1,5 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
+{% if winners %}
+<section class="mb-4">
+  <div class="card border-gold p-4">
+    <h2 class="h5">🏆 {{ t.winners_title }}</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-2" style="max-width: 560px">
+        {% for w in winners %}
+        <tr>
+          <td style="width:3rem">{% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}º{% endif %}</td>
+          <td><a href="https://x.com/{{ w.username }}">@{{ w.username }}</a></td>
+          <td class="text-end">{{ w.final }} pts</td>
+          <td class="text-end text-gold">{{ w.prize }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <p class="text-secondary small mb-0">{{ t.winners_note }}</p>
+  </div>
+</section>
+{% endif %}
+
 {% if promo %}
 <section class="hero-band p-5 mb-4">
   <div class="row align-items-center g-4">

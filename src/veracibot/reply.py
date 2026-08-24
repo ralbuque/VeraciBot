@@ -95,9 +95,16 @@ def format_reply(
         )
         return _compose(f"{label}. {curto}", scores, extra, max_len, case_url)
 
-    # disputa
+    # disputa / debate
     vencedor = verdict.get("vencedor")
-    if vencedor == "empate":
+    if verdict.get("tipo_caso") == "debate":
+        if vencedor == "empate":
+            header = "🎤 Debate: empate — nenhum lado prevaleceu. "
+        elif vencedor:
+            header = f"🎤 Vencedor do debate: @{vencedor.lstrip('@')}. "
+        else:
+            header = "🎤 Debate: "
+    elif vencedor == "empate":
         header = "⚖️ Veredito: empate. "
     elif vencedor:
         header = f"⚖️ Veredito: @{vencedor.lstrip('@')} tem razão. "

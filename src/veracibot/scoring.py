@@ -52,7 +52,7 @@ def apply_scores(
     conversation_id: str,
 ) -> list[tuple[str, int, int]]:
     """Despacha a pontuação conforme o tipo de caso."""
-    if verdict.get("tipo_caso") == "disputa":
+    if verdict.get("tipo_caso") in ("disputa", "debate"):
         return apply_dispute_scores(
             store, verdict, requester_id, requester_username, thread, conversation_id
         )
@@ -69,8 +69,9 @@ def apply_dispute_scores(
     thread: list[dict],
     conversation_id: str,
 ) -> list[tuple[str, int, int]]:
-    """Pontuação de disputas: vencedor/perdedor (mesma matriz do fact-check)."""
-    if verdict.get("tipo_caso") != "disputa" or not verdict.get("julgavel"):
+    """Pontuação de disputas e debates: vencedor/perdedor (mesma matriz)."""
+    tipo = verdict.get("tipo_caso")
+    if tipo not in ("disputa", "debate") or not verdict.get("julgavel"):
         return []
     vencedor = _clean(verdict.get("vencedor"))
     if not vencedor or vencedor.lower() == "empate":
@@ -102,7 +103,7 @@ def apply_dispute_scores(
         if perdedor:
             changes.append((perd_id, perdedor, -10))
 
-    return _apply(store, changes, f"disputa:{vencedor}", conversation_id)
+    return _apply(store, changes, f"{tipo}:{vencedor}", conversation_id)
 
 
 def apply_fact_check_scores(

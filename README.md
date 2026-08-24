@@ -108,6 +108,24 @@ juiz): chamador vence +11 / perde −10; outro lado +10 / −11. **Chamador neut
 (terceiro perguntando quem tem razão) paga só o custo e os lados disputam ±10.
 Empate: só o custo do chamador.
 
+## Debates e processos com partes registradas
+
+**Debate** é o terceiro tipo de caso: as partes defendem posições opostas sobre tema
+de opinião/valores e o juiz decide **quem argumentou melhor** (lógica, evidências,
+consistência, resposta aos contra-argumentos) — sempre com vencedor, salvo ausência
+total de argumentos. Pontuação igual à da disputa; sem composição (perder debate não
+é ilícito); recurso ao júri funciona.
+
+**Processo formal**: `"@veracibot vamos iniciar um debate (ou disputa) entre @a e @b
+sobre X"` → o bot abre o processo (custa 1 ponto de quem abre), registra as partes e
+responde as instruções. As partes argumentam na thread; uma delas (ou quem abriu)
+responde `"@veracibot encerrado"` (ou "quem venceu?") e sai o julgamento —
+considerando **apenas** as duas contas registradas. Prazo de 7 dias; expirado,
+o ponto volta.
+
+**Forma informal**: `"@veracibot quem venceu o debate entre @a e @b?"` no fim de
+qualquer thread — as partes citadas viram o filtro, sem abertura prévia.
+
 ## Limites anti-farming e anti-spam
 
 - **5 casos/hora por membro**: acima disso o bot ignora e avisa uma vez ao dia

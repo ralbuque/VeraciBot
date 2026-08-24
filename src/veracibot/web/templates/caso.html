@@ -14,6 +14,8 @@
       <span class="badge rounded-pill declined">{{ t.case_declined }}</span>
     {% elif case.tipo == 'fact_check' %}
       <span class="badge rounded-pill fact">{{ t.case_fact }}</span>
+    {% elif case.tipo == 'debate' %}
+      <span class="badge rounded-pill debate">{{ t.case_debate }}</span>
     {% else %}
       <span class="badge rounded-pill dispute">{{ t.case_dispute }}</span>
     {% endif %}
@@ -46,9 +48,10 @@
       {% if case.afirmacao %}<p class="claim">“{{ case.afirmacao }}”</p>{% endif %}
     {% elif case.julgavel %}
       <h3 class="h4">
-        {% if case.vencedor == 'empate' %}⚖️ {{ t.tie }}
-        {% elif case.vencedor %}⚖️ {{ t.winner }}: @{{ case.vencedor }}
-        {% else %}⚖️{% endif %}
+        {% set ico = '🎤' if case.tipo == 'debate' else '⚖️' %}
+        {% if case.vencedor == 'empate' %}{{ ico }} {{ t.tie }}
+        {% elif case.vencedor %}{{ ico }} {{ t.winner }}: @{{ case.vencedor }}
+        {% else %}{{ ico }}{% endif %}
       </h3>
     {% endif %}
     {% if case.resumo %}<p>{{ case.resumo }}</p>{% endif %}

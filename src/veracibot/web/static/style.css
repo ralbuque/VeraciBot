@@ -88,6 +88,7 @@ footer a { color: #ffffff; }
 .badge.dispute { background: #f7ecd7; border: 1px solid var(--vb-gold); color: #8a6415; }
 .badge.declined { background: #f6e3e1; border: 1px solid var(--vb-red); color: var(--vb-red); }
 .badge.evidence { background: #f3ecdc; border: 1px solid #b99334; color: #8a6415; }
+.badge.debate { background: #ece7f4; border: 1px solid #7a5ea8; color: #5b447e; }
 
 /* placar */
 .pos { color: var(--vb-green); font-weight: 700; }

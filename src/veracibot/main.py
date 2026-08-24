@@ -30,6 +30,27 @@ class CreditsExhausted(Exception):
 RATE_CAP_PER_HOUR = 5
 PAIR_CAP_PER_WEEK = 5
 
+# Processos com partes registradas (debate/disputa formal)
+PROCESS_DAYS = 7
+OPEN_RE = re.compile(
+    r"iniciar\s+(?:um[a]?\s+)?(debate|disputa)\s+entre\s+"
+    r"(?:a\s+conta\s+)?@(\w{1,15})\s+e\s+@(\w{1,15})", re.IGNORECASE)
+TOPIC_RE = re.compile(r"(?:acerca\s+d[eoa]s?|sobre)\s+(.{3,120})", re.IGNORECASE)
+PARTIES_RE = re.compile(r"entre\s+@(\w{1,15})\s+e\s+@(\w{1,15})", re.IGNORECASE)
+CLOSE_RE = re.compile(
+    r"encerr|quem\s+venceu|quem\s+ganhou|quem\s+est[aá]\s+cert|quem\s+tem\s+raz",
+    re.IGNORECASE)
+
+PROCESS_OPENED_MSG = (
+    "⚖️ Processo aberto: {tipo} entre @{p1} e @{p2}{tema}. Apresentem os "
+    "argumentos nesta thread. Ao terminar, uma das partes (ou quem abriu) responde "
+    "\"encerrado\" me mencionando, e eu julgo. Prazo: {dias} dias."
+)
+PROCESS_EXPIRED_MSG = (
+    "⏳ Processo expirado: {dias} dias sem pedido de encerramento. O ponto de "
+    "@{opener} foi devolvido. Podem abrir um novo quando quiserem."
+)
+
 RATE_CAP_MSG = (
     "⏳ @{handle}, você atingiu o limite de {n} casos por hora. A pausa protege "
     "sua conta das regras anti-spam do X — volte daqui a pouco!"
@@ -79,6 +100,18 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
     # Inscrição na promoção ("@veracibot quero participar")?
     if cfg.promo_enabled and ENROLL_RE.search(mention["text"]):
         handle_enrollment(mention, x, store, cfg)
+        return
+
+    # Abertura formal de processo ("iniciar um debate entre @a e @b")?
+    m_open = OPEN_RE.search(mention["text"])
+    if m_open and not store.get_open_process(conv_id) and not store.case_exists(conv_id):
+        handle_open_process(mention, m_open, x, store, cfg)
+        return
+
+    # Menção em processo aberto: encerramento (ou ruído)
+    proc = store.get_open_process(conv_id)
+    if proc:
+        handle_process_mention(mention, proc, x, judge, store, cfg)
         return
 
     # Convite via menção de um membro ("@veracibot convido @fulano")?
@@ -165,8 +198,17 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
                         in_reply_to_tweet_id=mention["id"])
                 return
 
+        # Partes informais ("quem venceu entre @a e @b?") restringem o julgamento
+        parties = None
+        pm = PARTIES_RE.search(mention["text"])
+        if pm:
+            p1, p2 = pm.group(1).lower(), pm.group(2).lower()
+            if cfg.bot_handle.lower() not in (p1, p2) and p1 != p2:
+                parties = (p1, p2)
+
         # Nota: thread com 1 tweet é válida — pode ser fact-check de afirmação única.
-        verdict = judge.judge(thread, requester, mention_id=mention["id"])
+        verdict = judge.judge(thread, requester, mention_id=mention["id"],
+                              parties=parties)
 
         # Caso não-julgável: custo estornado sempre. Menção fora de contexto →
         # silêncio; pedido genuíno recusado → reply explicando o motivo.
@@ -267,6 +309,8 @@ def open_composition(verdict, scores, thread, requester_id, requester, conv_id, 
     """Abre uma composição se houver perdedor e vencedor claros. Retorna a linha do reply."""
     if not verdict.get("julgavel"):
         return None
+    if verdict.get("tipo_caso") == "debate":
+        return None  # perder um debate não é ilícito: sem composição
     if verdict.get("gravidade") == "grave":
         return None  # main anexa a linha da justiça + advogados (precisa do cfg)
 
@@ -405,6 +449,127 @@ def handle_followup(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
                         winner["username"], announce_id, ends_at)
     log.info("Recurso aberto em %s por @%s (votação até %s).",
              conv_id, loser["username"], ends_at)
+
+
+def handle_open_process(mention: dict, m_open, x: XClient, store: Store, cfg) -> None:
+    """Abertura formal: registra as partes e aguarda o encerramento."""
+    conv_id = mention["conversation_id"]
+    requester = (mention["author_username"] or "").lower()
+    requester_id = mention["author_id"]
+    tipo = m_open.group(1).lower()
+    p1, p2 = m_open.group(2).lower(), m_open.group(3).lower()
+
+    if cfg.bot_handle.lower() in (p1, p2) or p1 == p2:
+        log.info("Abertura inválida em %s (partes: %s, %s); ignorando.",
+                 conv_id, p1, p2)
+        return
+    if cfg.invite_only and not store.is_member(requester):
+        if cfg.post_replies and not store.was_rejection_notified(requester):
+            store.mark_rejection_notified(requester)
+            template = NOT_INVITED_PROMO if cfg.promo_enabled else NOT_INVITED
+            x.post_reply(template.format(handle=requester),
+                         in_reply_to_tweet_id=mention["id"])
+        return
+    balance = store.get_balance(requester_id, requester)
+    if balance < CALL_COST:
+        log.info("@%s sem saldo para abrir processo.", requester)
+        return
+    store.adjust_score(requester_id, requester, -CALL_COST, "custo_chamada", conv_id)
+
+    tail = mention["text"][m_open.end():]
+    tm = TOPIC_RE.search(tail)
+    tema = tm.group(1).strip().rstrip(".?!") if tm else None
+    store.create_process(conv_id, tipo, requester_id, requester, p1, p2,
+                         tema, mention["id"])
+    log.info("Processo aberto em %s: %s entre @%s e @%s (tema: %s).",
+             conv_id, tipo, p1, p2, tema)
+    if cfg.post_replies:
+        x.post_reply(
+            PROCESS_OPENED_MSG.format(
+                tipo=tipo, p1=p1, p2=p2, dias=PROCESS_DAYS,
+                tema=f' sobre "{tema}"' if tema else ""),
+            in_reply_to_tweet_id=mention["id"])
+
+
+def handle_process_mention(mention: dict, proc: dict, x: XClient, judge: Judge,
+                           store: Store, cfg) -> None:
+    """Menção em processo aberto: só partes/abridor encerram; o resto é ignorado."""
+    conv_id = mention["conversation_id"]
+    author = (mention["author_username"] or "").lower()
+    allowed = {proc["party1"], proc["party2"], (proc["opener_username"] or "").lower()}
+    if author not in allowed:
+        log.info("Menção de @%s em processo aberto %s: não é parte; ignorando.",
+                 author, conv_id)
+        return
+    if not CLOSE_RE.search(mention["text"]):
+        log.info("Menção de @%s em %s não pede encerramento; ignorando.",
+                 author, conv_id)
+        return
+
+    log.info("Encerramento do processo %s pedido por @%s.", conv_id, author)
+    requester = proc["opener_username"] or author
+    requester_id = proc["opener_id"]
+    try:
+        thread = x.fetch_thread(conv_id, cfg.max_thread_tweets)
+        verdict = judge.judge(thread, requester, mention_id=mention["id"],
+                              parties=(proc["party1"], proc["party2"]),
+                              expected_tipo=proc["tipo"])
+        if verdict.get("julgavel"):
+            verdict["tipo_caso"] = proc["tipo"]  # processo formal fixa o tipo
+
+        if not verdict.get("julgavel"):
+            store.adjust_score(requester_id, requester, +CALL_COST,
+                               "estorno_arquivado", conv_id)
+            reply_id = None
+            if cfg.post_replies and verdict.get("recusa_silenciosa") is False:
+                reply_id = x.post_reply(
+                    format_reply(verdict, None,
+                                 "🪙 O ponto da chamada foi devolvido.",
+                                 cfg.max_reply_len),
+                    in_reply_to_tweet_id=mention["id"])
+            store.save_case(conv_id, proc["mention_tweet_id"], requester, "declined",
+                            verdict=verdict, reply_tweet_id=reply_id, thread=thread)
+            store.resolve_process(conv_id, "julgado")
+            return
+
+        scores = apply_scores(store, verdict, requester_id, requester, thread, conv_id)
+        extra = None
+        if verdict.get("tipo_caso") != "debate":
+            extra = open_composition(verdict, scores, thread, requester_id,
+                                     requester, conv_id, store)
+        if verdict.get("gravidade") == "grave":
+            extra = f"{JUSTICE_LINE}\n👩‍⚖️ Advogados parceiros: {cfg.site_url}/advogados"
+        if verdict.get("observacao"):
+            extra = (extra + "\n" if extra else "") + f"💬 {verdict['observacao']}"
+
+        reply_id = None
+        if cfg.post_replies:
+            reply_id = post_verdict_replies(x, cfg, mention["id"], verdict,
+                                            scores, extra, conv_id)
+        store.save_case(conv_id, proc["mention_tweet_id"], requester, "judged",
+                        verdict=verdict, reply_tweet_id=reply_id, thread=thread)
+        store.resolve_process(conv_id, "julgado")
+    except Exception:
+        log.exception("Erro ao julgar processo %s", conv_id)
+
+
+def check_expired_processes(x: XClient, store: Store, cfg) -> None:
+    """Processos abertos há mais de PROCESS_DAYS: expira e devolve o ponto."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=PROCESS_DAYS)).isoformat()
+    for proc in store.expired_open_processes(cutoff):
+        if not proc:
+            continue
+        conv_id = proc["conversation_id"]
+        store.resolve_process(conv_id, "expirado")
+        store.adjust_score(proc["opener_id"], proc["opener_username"], +CALL_COST,
+                           "estorno_processo_expirado", conv_id)
+        log.info("Processo %s expirado; ponto devolvido a @%s.",
+                 conv_id, proc["opener_username"])
+        if cfg.post_replies and proc.get("mention_tweet_id"):
+            x.post_reply(
+                PROCESS_EXPIRED_MSG.format(dias=PROCESS_DAYS,
+                                           opener=proc["opener_username"]),
+                in_reply_to_tweet_id=proc["mention_tweet_id"])
 
 
 def handle_vote(mention: dict, appeal: dict, store: Store, cfg) -> None:
@@ -802,7 +967,8 @@ def run() -> None:
 
         # Cada tarefa auxiliar falha sozinha, sem derrubar as demais.
         for task in (poll_owner_invites, check_appeals,
-                     check_expired_compositions, promo_tick, flush_outbox):
+                     check_expired_compositions, check_expired_processes,
+                     promo_tick, flush_outbox):
             try:
                 task(x, store, cfg)
             except tweepy.errors.TooManyRequests:
