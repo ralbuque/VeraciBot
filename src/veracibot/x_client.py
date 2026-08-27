@@ -282,7 +282,8 @@ class XClient:
 
     def post_poll(self, text: str, options: list[str], minutes: int,
                   in_reply_to_tweet_id: str) -> str | None:
-        """Posta uma enquete como reply. Retorna o id do tweet ou None se proibido."""
+        """Posta uma enquete como reply. Retorna o id do tweet ou None se falhar."""
+        self._throttle()
         try:
             resp = self.client.create_tweet(
                 text=text,
@@ -290,6 +291,9 @@ class XClient:
                 poll_duration_minutes=minutes,
                 in_reply_to_tweet_id=in_reply_to_tweet_id,
             )
+        except tweepy.errors.TooManyRequests:
+            log.warning("Enquete não postada: cota da X API (429).")
+            return None
         except tweepy.errors.Forbidden as e:
             log.warning("Enquete proibida pelo X em %s: %s", in_reply_to_tweet_id, e)
             return None

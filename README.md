@@ -148,16 +148,17 @@ alegante perde. Pontos e composição só são aplicados no veredito final.
 
 ## Recurso (votação popular)
 
-O **perdedor** pode apelar uma vez por caso, respondendo na thread com menção ao bot
-expressando discordância (interpretada por IA). Custa **5 pontos**. O bot abre a
-**votação do júri popular por 24h**: membros votam respondendo na thread
-`@veracibot voto @fulano`. Só contam votos de **membros convidados** (imune a spam
-de contas fake); as partes não votam; cada membro tem 1 voto e pode trocá-lo até o
-fim. Com quorum (`APPEAL_QUORUM` no `.env`, padrão 5) e maioria pelo apelante, a
+O **perdedor** pode apelar uma vez por caso (vale para os três tipos), respondendo
+na thread com menção ao bot expressando discordância (interpretada por IA). Custa
+**5 pontos**. O bot abre uma **enquete pública nativa do X por 24h** com as duas
+partes como opções — mais intuitivo, ainda que sujeito a mobilização de votos.
+Com quorum (`APPEAL_QUORUM` no `.env`, padrão 5) e maioria pelo apelante, a
 sentença é **reformada**: pontuação invertida (cada parte recebe o resultado da
-outra), os 5 pontos voltam e composição pendente é cancelada. Empate, minoria ou
-falta de quorum: sentença **mantida** e os 5 pontos não retornam. O acórdão sai
-como reply do anúncio da votação.
+outra) e os 5 pontos voltam. Empate, minoria ou falta de quorum: sentença
+**mantida** e os 5 pontos não retornam. O acórdão sai como reply da enquete.
+
+**Composição**: suspensa por ora (`COMPOSITION_ENABLED=false`) — o veredito para
+no vencedor/perdedor; o mecanismo de reparação volta numa fase futura.
 
 ## Composição
 

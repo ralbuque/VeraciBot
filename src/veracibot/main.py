@@ -60,7 +60,6 @@ PAIR_CAP_MSG = (
     "Diversifique a caçada!"
 )
 APPEAL_COST = 5
-APPEAL_HOURS = 24
 
 # --- Promoção "Em Busca da Verdade" ---
 ENROLL_RE = re.compile(r"quero\s+participar", re.IGNORECASE)
@@ -75,14 +74,12 @@ PROMO_MISSING = (
     "Depois é só repetir \"@veracibot quero participar\". Regras: {site}"
 )
 
-VOTE_RE = re.compile(r"voto\s+@(\w{1,15})", re.IGNORECASE)
+APPEAL_POLL_MINUTES = 1440  # enquete de 24h
 
-APPEAL_TEXT = (
-    "⚖️ RECURSO! @{loser} não concorda com a sentença e apela ao júri popular.\n"
-    "🗳️ Membros do tribunal: votem em até {hours}h respondendo aqui "
-    "\"voto @{winner}\" ou \"voto @{loser}\" (com menção a mim). Um voto por membro; "
-    "só votos de membros convidados contam e as partes não votam. "
-    "Quorum: {quorum} votos."
+APPEAL_POLL_TEXT = (
+    "⚖️ RECURSO! @{loser} não concorda com a sentença e apela ao público. "
+    "Quem tem razão? A enquete decide em 24h — maioria com pelo menos "
+    "{quorum} votos reforma a sentença."
 )
 
 logging.basicConfig(
@@ -123,10 +120,7 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
 
     case = store.get_case(conv_id)
     if case:
-        appeal = store.get_appeal(conv_id)
-        if appeal and appeal["status"] == "aberta" and VOTE_RE.search(mention["text"]):
-            handle_vote(mention, appeal, store, cfg)
-        elif case["status"] == "aguardando_provas":
+        if case["status"] == "aguardando_provas":
             handle_evidence(mention, x, judge, store, cfg, case)
         else:
             handle_followup(mention, x, judge, store, cfg)
@@ -254,8 +248,9 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         scores = apply_scores(
             store, verdict, requester_id, requester, thread, conv_id
         )
-        extra = open_composition(verdict, scores, thread, requester_id, requester,
-                                 conv_id, store)
+        extra = (open_composition(verdict, scores, thread, requester_id, requester,
+                                  conv_id, store)
+                 if cfg.composition_enabled else None)
         if verdict.get("julgavel") and verdict.get("gravidade") == "grave":
             extra = f"{JUSTICE_LINE}\n👩‍⚖️ Advogados parceiros: {cfg.site_url}/advogados"
         if verdict.get("nota_credibilidade"):
@@ -362,6 +357,7 @@ def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
             return
 
         requester_id = resolve_user_id(thread, requester) or mention["author_id"]
+        # (fase de provas herda os mesmos gates de composição do fluxo normal)
 
         # Veredito final não-julgável: mesmo tratamento (silêncio ou explicação).
         if not verdict.get("julgavel"):
@@ -380,8 +376,9 @@ def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
             return
 
         scores = apply_scores(store, verdict, requester_id, requester, thread, conv_id)
-        extra = open_composition(verdict, scores, thread, requester_id, requester,
-                                 conv_id, store)
+        extra = (open_composition(verdict, scores, thread, requester_id, requester,
+                                  conv_id, store)
+                 if cfg.composition_enabled else None)
         if verdict.get("julgavel") and verdict.get("gravidade") == "grave":
             extra = f"{JUSTICE_LINE}\n👩‍⚖️ Advogados parceiros: {cfg.site_url}/advogados"
         reply_id = None
@@ -396,9 +393,10 @@ def handle_evidence(mention: dict, x: XClient, judge: Judge, store: Store,
 
 
 def handle_followup(mention: dict, x: XClient, judge: Judge, store: Store, cfg) -> None:
-    """Menção em caso julgado: confirmação de composição (vencedor) ou recurso (perdedor)."""
+    """Menção em caso julgado: confirmação de composição (se ativa) ou recurso."""
     conv_id = mention["conversation_id"]
-    comp = store.get_pending_composition(conv_id)
+    comp = (store.get_pending_composition(conv_id)
+            if cfg.composition_enabled else None)
     if comp and mention["author_id"] == comp["winner_id"]:
         handle_confirmation(mention, x, judge, store, cfg, comp)
         return
@@ -434,24 +432,25 @@ def handle_followup(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
 
     store.adjust_score(loser["user_id"], loser["username"], -APPEAL_COST,
                        "custo_recurso", conv_id)
-    announce_id = None
+    poll_id = None
     if cfg.post_replies:
-        announce_id = x.post_reply(
-            APPEAL_TEXT.format(loser=loser["username"], winner=winner["username"],
-                               hours=APPEAL_HOURS, quorum=cfg.appeal_quorum),
+        poll_id = x.post_poll(
+            APPEAL_POLL_TEXT.format(loser=loser["username"], quorum=cfg.appeal_quorum),
+            options=[f"@{winner['username']}", f"@{loser['username']}"],
+            minutes=APPEAL_POLL_MINUTES,
             in_reply_to_tweet_id=mention["id"],
         )
-    if not announce_id:
+    if not poll_id:
         store.adjust_score(loser["user_id"], loser["username"], +APPEAL_COST,
                            "estorno_recurso_falha", conv_id)
-        log.warning("Anúncio do recurso falhou em %s; custo estornado.", conv_id)
+        log.warning("Enquete do recurso falhou em %s; custo estornado.", conv_id)
         return
     ends_at = (datetime.now(timezone.utc)
-               + timedelta(hours=APPEAL_HOURS)).isoformat()
+               + timedelta(minutes=APPEAL_POLL_MINUTES + 10)).isoformat()
     store.create_appeal(conv_id, loser["user_id"], loser["username"],
-                        winner["username"], announce_id, ends_at)
-    log.info("Recurso aberto em %s por @%s (votação até %s).",
-             conv_id, loser["username"], ends_at)
+                        winner["username"], poll_id, ends_at)
+    log.info("Recurso aberto em %s por @%s (enquete %s até %s).",
+             conv_id, loser["username"], poll_id, ends_at)
 
 
 def handle_open_process(mention: dict, m_open, x: XClient, store: Store, cfg) -> None:
@@ -574,31 +573,6 @@ def check_expired_processes(x: XClient, store: Store, cfg) -> None:
                 PROCESS_EXPIRED_MSG.format(dias=PROCESS_DAYS,
                                            opener=proc["opener_username"]),
                 in_reply_to_tweet_id=proc["mention_tweet_id"])
-
-
-def handle_vote(mention: dict, appeal: dict, store: Store, cfg) -> None:
-    """Voto de membro num recurso aberto ('voto @fulano')."""
-    conv_id = mention["conversation_id"]
-    voter = (mention["author_username"] or "").lower()
-    choice = VOTE_RE.search(mention["text"]).group(1).lower()
-    parties = {appeal["appellant_username"].lower(),
-               appeal["opponent_username"].lower()}
-
-    if datetime.now(timezone.utc).isoformat() > appeal["ends_at"]:
-        log.info("Voto de @%s em %s fora do prazo; ignorado.", voter, conv_id)
-        return
-    if voter in parties:
-        log.info("Voto de @%s ignorado: é parte no caso %s.", voter, conv_id)
-        return
-    if cfg.invite_only and not store.is_member(voter):
-        log.info("Voto de @%s ignorado: não é membro.", voter)
-        return
-    if choice not in parties:
-        log.info("Voto de @%s em %s para @%s não é uma das partes; ignorado.",
-                 voter, conv_id, choice)
-        return
-    store.record_vote(conv_id, mention["author_id"], voter, choice)
-    log.info("Voto registrado em %s: @%s → @%s.", conv_id, voter, choice)
 
 
 def handle_enrollment(mention: dict, x: XClient, store: Store, cfg) -> None:
@@ -755,6 +729,8 @@ def promo_tick(x: XClient, store: Store, cfg) -> None:
 
 def check_expired_compositions(x: XClient, store: Store, cfg) -> None:
     """Composições com prazo vencido: encerra e indica advogados parceiros."""
+    if not cfg.composition_enabled:
+        return
     now = datetime.now(timezone.utc).isoformat()
     for comp in store.expired_pending_compositions(now):
         if not comp:
@@ -780,14 +756,21 @@ def check_expired_compositions(x: XClient, store: Store, cfg) -> None:
 
 
 def check_appeals(x: XClient, store: Store, cfg) -> None:
-    """Apura votações de recurso encerradas e publica o acórdão."""
+    """Apura enquetes de recurso encerradas e publica o acórdão."""
     now = datetime.now(timezone.utc).isoformat()
     for ap in store.open_appeals():
         if now < ap["ends_at"]:
             continue
-        votes = store.count_votes(ap["conversation_id"])
-        v_winner = votes.get(ap["opponent_username"].lower(), 0)
-        v_loser = votes.get(ap["appellant_username"].lower(), 0)
+        results = x.fetch_poll_results(ap["poll_tweet_id"])
+        if not results:
+            log.warning("Recurso %s: enquete %s inacessível; tentando depois.",
+                        ap["conversation_id"], ap["poll_tweet_id"])
+            continue
+        if not results["closed"]:
+            continue  # enquete ainda aberta; próximo ciclo
+        votes = results["votes"]
+        v_winner = votes.get(f"@{ap['opponent_username']}", 0)
+        v_loser = votes.get(f"@{ap['appellant_username']}", 0)
         total = v_winner + v_loser
         reformed = total >= cfg.appeal_quorum and v_loser > v_winner
 
@@ -813,7 +796,7 @@ def check_appeals(x: XClient, store: Store, cfg) -> None:
             if comp:
                 store.resolve_composition(conv_id, "cancelada_recurso")
             store.resolve_appeal(conv_id, "reformada")
-            text = (f"⚖️ ACÓRDÃO: por {v_loser}×{v_winner} ({total} votos), o povo "
+            text = (f"⚖️ ACÓRDÃO: por {v_loser}×{v_winner} ({total} votos), o público "
                     f"REFORMOU a sentença. @{ap['appellant_username']} tem razão.")
             if new_balances:
                 placar = " · ".join(f"@{u} {'+' if d > 0 else ''}{d} ({b} pts)"
@@ -822,7 +805,7 @@ def check_appeals(x: XClient, store: Store, cfg) -> None:
         else:
             store.resolve_appeal(conv_id, "mantida")
             motivo = ("sem o quorum mínimo de votos, prevalece o juízo técnico"
-                      if total < cfg.appeal_quorum else "o júri confirmou o veredito")
+                      if total < cfg.appeal_quorum else "o público confirmou o veredito")
             text = (f"⚖️ ACÓRDÃO: por {v_winner}×{v_loser} ({total} votos), a "
                     f"sentença foi MANTIDA — {motivo}. Os {APPEAL_COST} pontos do "
                     f"recurso não retornam.")

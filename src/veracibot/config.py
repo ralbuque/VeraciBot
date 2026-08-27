@@ -35,6 +35,7 @@ class Config:
     invite_only: bool
     max_reply_len: int
     appeal_quorum: int
+    composition_enabled: bool
     site_url: str
     promo_enabled: bool
     promo_start: str
@@ -64,6 +65,7 @@ def load_config() -> Config:
         invite_only=os.environ.get("INVITE_ONLY", "false").lower() == "true",
         max_reply_len=int(os.environ.get("MAX_REPLY_LEN", "280")),
         appeal_quorum=int(os.environ.get("APPEAL_QUORUM", "5")),
+        composition_enabled=os.environ.get("COMPOSITION_ENABLED", "false").lower() == "true",
         site_url=os.environ.get("SITE_URL", "https://veraci.bot").rstrip("/"),
         promo_enabled=os.environ.get("PROMO_ENABLED", "false").lower() == "true",
         promo_start=os.environ.get("PROMO_START", "2026-08-16T00:00:00-03:00"),
