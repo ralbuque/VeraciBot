@@ -112,7 +112,8 @@ class XClient:
         tweets.sort(key=lambda m: int(m["id"]))
         return tweets
 
-    def fetch_thread(self, conversation_id: str, max_tweets: int) -> list[dict]:
+    def fetch_thread(self, conversation_id: str, max_tweets: int,
+                     priority: set[str] | None = None) -> list[dict]:
         """Reconstrói a thread: tweet raiz + replies da conversa, em ordem cronológica.
 
         Limitação do plano Basic: a busca recente só cobre os últimos 7 dias.
@@ -174,7 +175,25 @@ class XClient:
                     tweets[str(t.id)] = d
 
         thread = sorted(tweets.values(), key=lambda t: int(t["id"]))
-        return thread[:max_tweets]
+        if len(thread) <= max_tweets:
+            return thread
+        if not priority:
+            return thread[:max_tweets]
+        # Corte com prioridade: tweets das partes (e raiz/citados) nunca são
+        # descartados em favor de comentários de curiosos.
+        pr = {p.lower().lstrip("@") for p in priority}
+        keep = [t for t in thread
+                if (t.get("author_username") or "").lower() in pr
+                or t["id"] == conversation_id or t.get("quoted_context")]
+        keep = keep[:max_tweets]
+        if len(keep) < max_tweets:
+            kept_ids = {t["id"] for t in keep}
+            for t in thread:
+                if t["id"] not in kept_ids:
+                    keep.append(t)
+                    if len(keep) >= max_tweets:
+                        break
+        return sorted(keep, key=lambda t: int(t["id"]))
 
     def me_id(self) -> str:
         """Id da própria conta do bot (cacheado)."""

@@ -46,7 +46,7 @@ Regras para DISPUTAS:
 
 Regras para FACT-CHECK:
 - ESCOPO: julgue APENAS afirmações do FIO PRINCIPAL (a cadeia do post original até
-  a menção ao bot, incluindo tweets citados por ela). Os OUTROS COMENTÁRIOS da
+  a menção ao bot, incluindo tweets citados por ela). Os DEMAIS COMENTÁRIOS da
   conversa são contexto: não recebem veredito nem pontos. Se algum trouxer
   informação relevante ao caso, destaque-o no campo "observacao".
 - DECOMPONHA o caso em AFIRMAÇÕES FACTUAIS INDEPENDENTES (máximo 4), cada uma
@@ -91,6 +91,14 @@ CONTRADIÇÃO FACTUAL E PROVAS:
 - A thread pode conter TWEETS CITADOS (quote): alguém citou um tweet de fora da
   conversa, em geral para contestá-lo. O tweet citado costuma conter a afirmação
   sob análise, e seu autor é parte no caso normalmente (autor_afirmacao).
+
+AUTORIA — ATENÇÃO MÁXIMA: cada tweet vem rotulado com [@autor]. Confira a autoria
+de cada argumento antes de usá-lo; NUNCA atribua a uma conta o que outra disse.
+Na justificativa, ao citar um argumento, nomeie explicitamente a conta correta.
+
+ESCOPO POR TIPO: em FACT-CHECK, julgue apenas o FIO PRINCIPAL. Em DISPUTAS e
+DEBATES, os argumentos podem estar em QUALQUER parte da conversa (inclusive nos
+DEMAIS COMENTÁRIOS) — considere-os, mas só pontuam as partes envolvidas.
 
 Responda em português brasileiro.
 NUNCA use tags de citação como <cite> no texto — mencione as fontes em linguagem
@@ -149,9 +157,11 @@ MAX_IMAGES = 4
 MAX_IMAGE_BYTES = 4_500_000
 
 
-def _order_thread(thread: list[dict], mention_id: str | None):
+def _order_thread(thread: list[dict], mention_id: str | None,
+                  parties: tuple[str, str] | None = None):
     """Separa o FIO PRINCIPAL (raiz → menção, com tweets citados por ele) dos
-    demais comentários da conversa (contexto)."""
+    demais comentários. Com `parties`, TODOS os tweets das partes entram no fio
+    (threads de debate bifurcam; os argumentos não podem cair no contexto)."""
     by_id = {t.get("id"): t for t in thread if t.get("id")}
     if not mention_id or mention_id not in by_id:
         return thread, []
@@ -168,6 +178,15 @@ def _order_thread(thread: list[dict], mention_id: str | None):
         cur = t.get("replied_to_id")
     chain.reverse()  # cronológico: raiz primeiro, menção por último
     others = [t for t in thread if t.get("id") not in seen]
+
+    if parties:
+        ps = {p.lower().lstrip("@") for p in parties}
+        extra = [t for t in others
+                 if (t.get("author_username") or "").lower() in ps]
+        if extra:
+            chain = sorted(chain + extra, key=lambda t: int(t.get("id") or 0))
+            ids = {t.get("id") for t in chain}
+            others = [t for t in others if t.get("id") not in ids]
     return chain, others
 
 
@@ -191,13 +210,12 @@ def _format_thread(chain: list[dict], others: list[dict] | None = None) -> str:
         lines.append(f"{header}\n{t['text']}\n")
 
     if others:
-        lines.append("=== FIO PRINCIPAL (da raiz até a chamada ao bot — "
-                     "só isto é julgável e pontuável) ===\n")
+        lines.append("=== FIO PRINCIPAL (da raiz até a chamada ao bot) ===\n")
     for t in chain:
         render(t)
     if others:
-        lines.append("\n=== OUTROS COMENTÁRIOS DA CONVERSA "
-                     "(apenas contexto; NÃO julgar nem pontuar) ===\n")
+        lines.append("\n=== DEMAIS COMENTÁRIOS DA CONVERSA (contexto; "
+                     "ver regras de escopo por tipo) ===\n")
         for t in others:
             render(t)
     return "\n".join(lines)
@@ -305,7 +323,8 @@ class Judge:
     def judge(self, thread: list[dict], requester: str,
               evidence: dict | None = None, mention_id: str | None = None,
               parties: tuple[str, str] | None = None,
-              expected_tipo: str | None = None) -> dict:
+              expected_tipo: str | None = None,
+              tipo_hint: str | None = None) -> dict:
         """Julga a thread. `evidence` = {'onus','fato','expired'} na fase de provas.
         `mention_id` delimita o fio principal; `parties` restringe o julgamento a
         duas contas; `expected_tipo` fixa o tipo em processos abertos formalmente."""
@@ -314,7 +333,7 @@ class Judge:
             kwargs["tools"] = [
                 {"type": "web_search_20250305", "name": "web_search", "max_uses": 3}
             ]
-        chain, others = _order_thread(thread, mention_id)
+        chain, others = _order_thread(thread, mention_id, parties)
         text = USER_PROMPT.format(requester=requester,
                                   thread_text=_format_thread(chain, others))
         if parties:
@@ -322,6 +341,10 @@ class Judge:
                          if expected_tipo else "")
             text += PARTIES_PROMPT.format(p1=parties[0], p2=parties[1],
                                           tipo_note=tipo_note)
+        if tipo_hint and not expected_tipo:
+            text += (f"\n\nNOTA: quem chamou o bot se referiu ao caso como "
+                     f"{tipo_hint.upper()} — classifique tipo_caso como "
+                     f"\"{tipo_hint}\", salvo se claramente não for.")
         if evidence:
             text += EVIDENCE_PROMPT.format(
                 onus=evidence["onus"],

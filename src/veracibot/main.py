@@ -175,7 +175,18 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
         requester_id, requester, -CALL_COST, "custo_chamada", conv_id
     )
     try:
-        thread = x.fetch_thread(conv_id, cfg.max_thread_tweets)
+        # Partes informais ("quem venceu entre @a e @b?") — identificadas ANTES da
+        # busca, para priorizar os tweets delas no corte de MAX_THREAD_TWEETS.
+        parties = None
+        pm = PARTIES_RE.search(mention["text"])
+        if pm:
+            p1, p2 = pm.group(1).lower(), pm.group(2).lower()
+            if cfg.bot_handle.lower() not in (p1, p2) and p1 != p2:
+                parties = (p1, p2)
+        tipo_hint = "debate" if re.search(r"\bdebat", mention["text"], re.I) else None
+
+        thread = x.fetch_thread(conv_id, cfg.max_thread_tweets,
+                                priority=set(parties) if parties else None)
 
         # Limite por par chamador→alvo: mata o farming de uma mesma conta
         target = next((t for t in thread
@@ -198,17 +209,9 @@ def process_mention(mention: dict, x: XClient, judge: Judge, store: Store, cfg) 
                         in_reply_to_tweet_id=mention["id"])
                 return
 
-        # Partes informais ("quem venceu entre @a e @b?") restringem o julgamento
-        parties = None
-        pm = PARTIES_RE.search(mention["text"])
-        if pm:
-            p1, p2 = pm.group(1).lower(), pm.group(2).lower()
-            if cfg.bot_handle.lower() not in (p1, p2) and p1 != p2:
-                parties = (p1, p2)
-
         # Nota: thread com 1 tweet é válida — pode ser fact-check de afirmação única.
         verdict = judge.judge(thread, requester, mention_id=mention["id"],
-                              parties=parties)
+                              parties=parties, tipo_hint=tipo_hint)
 
         # Caso não-julgável: custo estornado sempre. Menção fora de contexto →
         # silêncio; pedido genuíno recusado → reply explicando o motivo.
@@ -510,7 +513,8 @@ def handle_process_mention(mention: dict, proc: dict, x: XClient, judge: Judge,
     requester = proc["opener_username"] or author
     requester_id = proc["opener_id"]
     try:
-        thread = x.fetch_thread(conv_id, cfg.max_thread_tweets)
+        thread = x.fetch_thread(conv_id, cfg.max_thread_tweets,
+                                priority={proc["party1"], proc["party2"]})
         verdict = judge.judge(thread, requester, mention_id=mention["id"],
                               parties=(proc["party1"], proc["party2"]),
                               expected_tipo=proc["tipo"])
