@@ -96,6 +96,12 @@ AUTORIA — ATENÇÃO MÁXIMA: cada tweet vem rotulado com [@autor]. Confira a a
 de cada argumento antes de usá-lo; NUNCA atribua a uma conta o que outra disse.
 Na justificativa, ao citar um argumento, nomeie explicitamente a conta correta.
 
+POSIÇÕES NÃO DOCUMENTADAS: se o texto de um tweet parecer truncado (termina no
+meio da frase ou num link), ou se a posição de uma parte estiver apenas em VÍDEO,
+imagem inacessível ou parafraseada por terceiros, NÃO reconstrua essa posição por
+inferência. Declare a limitação na justificativa e, se a posição faltante for
+decisiva, recuse o caso pedindo que a parte resuma sua posição em texto na thread.
+
 ESCOPO POR TIPO: em FACT-CHECK, julgue apenas o FIO PRINCIPAL. Em DISPUTAS e
 DEBATES, os argumentos podem estar em QUALQUER parte da conversa (inclusive nos
 DEMAIS COMENTÁRIOS) — considere-os, mas só pontuam as partes envolvidas.

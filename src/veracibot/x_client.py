@@ -18,7 +18,7 @@ def _is_locked(exc: Exception) -> bool:
     return "temporarily locked" in str(exc).lower()
 
 TWEET_FIELDS = ["author_id", "conversation_id", "created_at", "in_reply_to_user_id",
-                "referenced_tweets", "attachments", "entities"]
+                "referenced_tweets", "attachments", "entities", "note_tweet"]
 EXPANSIONS = ["author_id", "attachments.media_keys"]
 USER_FIELDS = ["username", "name"]
 MEDIA_FIELDS = ["url", "type"]
@@ -48,6 +48,12 @@ def _tweet_to_dict(tweet, users: dict, media: dict | None = None) -> dict:
                 quoted_id = str(ref.id)
             elif ref.type == "replied_to":
                 replied_to_id = str(ref.id)
+    # Notas longas: o campo `text` traz só a prévia de 280 chars; o texto
+    # completo vem em note_tweet (sem ele, o juiz lê argumentos decapitados).
+    text = tweet.text
+    note = getattr(tweet, "note_tweet", None)
+    if note and note.get("text"):
+        text = note["text"]
     return {
         "quoted_id": quoted_id,
         "replied_to_id": replied_to_id,
@@ -56,7 +62,7 @@ def _tweet_to_dict(tweet, users: dict, media: dict | None = None) -> dict:
         "author_id": str(tweet.author_id),
         "author_username": author.username if author else None,
         "author_name": author.name if author else None,
-        "text": tweet.text,
+        "text": text,
         "created_at": tweet.created_at.isoformat() if tweet.created_at else None,
         "media_urls": media_urls,
     }
